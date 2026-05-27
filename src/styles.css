@@ -1,0 +1,224 @@
+/* ============================================================
+   CHROMATIC — Game UI Design System
+   ============================================================ */
+
+:root {
+  /* surfaces — warm parchment-dark (Slay-the-Spire / Hades-ish) */
+  --bg:        #2a2219;
+  --bg-2:      #322a1f;
+  --surface:   #3d3225;
+  --surface-2: #4a3d2c;
+  --surface-3: #5a4a34;
+  --line:      #5a4733;
+  --line-hi:   #8b6f47;
+  --line-soft: #3a2e22;
+
+  /* type */
+  --ink:       #fbf3dc;
+  --ink-dim:   #d8c39a;
+  --ink-mute:  #9b8463;
+  --ink-faint: #6b573d;
+
+  /* gold = primary UI accent */
+  --gold:      #d6a955;
+  --gold-hi:   #f0c878;
+  --gold-deep: #8a6a2c;
+
+  /* 5 card colors */
+  --c-natur:   #6aa56a;
+  --c-krieg:   #c8553d;
+  --c-stein:   #9a8f80;
+  --c-untot:   #9a6cb6;
+  --c-farblos: #ead7a8;
+
+  /* meters */
+  --hp:        #6aa56a;
+  --hp-bad:    #c8553d;
+  --mana:      #4a8cc8;
+  --xp:        #d6a955;
+
+  /* fx */
+  --shadow-sm: 0 2px 6px rgba(0,0,0,.4);
+  --shadow:    0 6px 24px rgba(0,0,0,.55);
+  --glow-gold: 0 0 24px rgba(214,169,85,.4);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #0f0c08;
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  color: var(--ink);
+}
+
+/* ============================================================
+   Viewport-Fit: Designs sind in einem 1280×800-Koordinatensystem
+   gemacht. .cm-fit hält dieses Koordinatensystem und skaliert es
+   per CSS-Transform so, dass es den Viewport ausfüllt — gleiche
+   Idee wie Phaser.Scale.FIT, nur dass HTML/CSS dabei pixelgenau
+   scharf bleibt (Text wird vom Browser direkt in der Zielgröße
+   gerendert, nicht bilinear hochskaliert).
+
+   --ui-scale wird beim Boot + bei jedem Resize in main.ts gesetzt.
+============================================================ */
+.cm-fit {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.cm-fit > * {
+  width: 1280px;
+  height: 800px;
+  transform: scale(var(--ui-scale, 1));
+  transform-origin: center center;
+  flex-shrink: 0;
+}
+
+/* === Screen frame === */
+.cm-screen {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background:
+    radial-gradient(ellipse at 50% 0%, #4a3a26 0%, var(--bg) 55%, var(--bg-2) 100%);
+  color: var(--ink);
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  overflow: hidden;
+}
+
+/* subtle parchment grain */
+.cm-screen::before {
+  content: "";
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(214,169,85,.04) 0, transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(154,108,182,.03) 0, transparent 40%);
+}
+
+/* edge vignette */
+.cm-screen::after {
+  content: "";
+  position: absolute; inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 140px rgba(0,0,0,.45);
+}
+
+/* === Type === */
+.cm-display {
+  font-family: "Cinzel", "Marcellus", serif;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.cm-title {
+  font-family: "Cinzel", serif;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.cm-num {
+  font-family: "JetBrains Mono", "IBM Plex Mono", monospace;
+  font-variant-numeric: tabular-nums;
+}
+.cm-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+/* === Top HUD === */
+.cm-hud {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 28px;
+  z-index: 5;
+}
+.cm-hud-left, .cm-hud-right { display: flex; align-items: center; gap: 18px; }
+.cm-act {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.cm-act-label { font-family: "JetBrains Mono", monospace; font-size: 10px; letter-spacing: 0.3em; color: var(--ink-mute); text-transform: uppercase; }
+.cm-act-name  { font-family: "Cinzel", serif; font-size: 18px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink); }
+
+.cm-coin {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px;
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.cm-coin svg { width: 16px; height: 16px; }
+.cm-coin-val { font-family: "JetBrains Mono", monospace; font-size: 16px; color: var(--gold-hi); letter-spacing: 0.05em; }
+
+.cm-hp-pill {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+.cm-hp-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--hp); box-shadow: 0 0 8px var(--hp); }
+
+/* === Buttons === */
+.cm-btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 10px 22px;
+  background: linear-gradient(180deg, var(--surface-3), var(--surface));
+  border: 1px solid var(--line-hi);
+  color: var(--ink);
+  font-family: "Cinzel", serif;
+  font-size: 13px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all .15s;
+}
+.cm-btn:hover { border-color: var(--gold); color: var(--gold-hi); }
+.cm-btn--gold {
+  background: linear-gradient(180deg, #c89642, #8a6a2c);
+  border-color: var(--gold-hi);
+  color: #1a1208;
+  text-shadow: 0 1px 0 rgba(255,255,255,.2);
+}
+.cm-btn--ghost {
+  background: transparent; border-color: var(--line);
+}
+
+/* === Card (carry-card) === */
+.cm-card {
+  position: relative;
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  border: 1px solid var(--line-hi);
+  overflow: hidden;
+}
+.cm-card--selected {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px var(--gold), 0 0 24px rgba(214,169,85,.35);
+}
+
+/* === Color chips (5 card colors) === */
+.cm-chip {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+.cm-chip--natur   { background: var(--c-natur); box-shadow: 0 0 6px rgba(106,165,106,.6); }
+.cm-chip--krieg   { background: var(--c-krieg); box-shadow: 0 0 6px rgba(200,85,61,.6); }
+.cm-chip--stein   { background: var(--c-stein); box-shadow: 0 0 6px rgba(154,143,128,.6); }
+.cm-chip--untot   { background: var(--c-untot); box-shadow: 0 0 6px rgba(154,108,182,.6); }
+.cm-chip--farblos { background: var(--c-farblos); box-shadow: 0 0 6px rgba(234,215,168,.5); }
