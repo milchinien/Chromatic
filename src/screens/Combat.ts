@@ -13,21 +13,25 @@ import { ComboAuraSystem } from '../systems/combat/ComboAuraSystem';
 import { mulberry32 } from '../systems/rng';
 import { sandboxEnemyDeck, sandboxPlayerDeck } from '../systems/data/starterDeck';
 import { getActiveEncounter, getCurrentRun, setActiveEncounter } from '../systems/run/currentRun';
-import { addCoins, damageBase, exitRoom, isInRoom, markNodeVisited } from '../systems/run/RunState';
+import { addCardToDeck, addCoins, advanceToNextAct, damageBase, exitRoom, isFinalAct, isInRoom, markNodeVisited } from '../systems/run/RunState';
+import { getRandomDrops, treasurePool } from '../systems/data/dropPool';
 import { encounterDeck } from '../systems/data/encounters';
-import { applyPerk } from '../systems/data/perks';
+import { applyPerkOnCombatMount } from '../systems/data/perks';
+import { sfx, isMuted } from '../systems/audio';
 import {
-  ENEMY_BASE_X,
+  DAMAGE_NUMBER_LIFE_SEC,
+  DEATH_ANIM_SEC,
   EXP_THRESHOLDS,
   FIELD_HEIGHT,
   FIELD_WIDTH,
-  PLAYER_BASE_X,
+  SPAWN_FLASH_SEC,
   UNIT_RADIUS,
 } from '../systems/data/balance';
 import { colorToCss, COLORS_CSS } from '../systems/data/designTokens';
 import { renderCardView } from '../ui/CardView';
 import { renderHpBar } from '../ui/HpBar';
 import { renderManaBar } from '../ui/ManaBar';
+import { bgUrl, combatBgForAct } from '../ui/backgrounds';
 
 /**
  * Combat-Screen (Phase 2).
@@ -52,14 +56,14 @@ export const Combat: Screen = (host, ctx) => {
   const enemyDeck = sandboxMode ? sandboxEnemyDeck() : encounterDeck(encounter!);
   let state: CombatState = createCombatState(playerDeck, enemyDeck, rng);
   // Base-HP aus Run übernehmen (persistent über Räume), falls vorhanden.
+  // Run-State bleibt Source-of-Truth — Perks haben run.maxBaseHp ggf. bereits
+  // in PerkSelect erhöht (onChoose). Hier nur Side-State von Run initialisieren.
   if (!sandboxMode && run) {
     state.player.baseHp = run.baseHp;
     state.player.maxBaseHp = run.maxBaseHp;
-    // Perks anwenden — sie modifizieren Mana/HP/Hand-Size/Bonus-Damage einmalig.
-    for (const perk of run.activePerks) applyPerk(perk, state.player, run);
-    // Falls maxBaseHp durch Perks erhöht wurde, baseHp ggf. mit-anheben.
-    state.player.maxBaseHp = run.maxBaseHp;
-    state.player.baseHp = Math.min(run.baseHp, state.player.maxBaseHp);
+    // Side-Effekte der Perks: manaRegen, maxMana, handSize, baseHpRegen, globalDamageBonus.
+    // KEINE run-state-Modifikation hier (sonst Stacking-Bug bei mehreren Combats).
+    for (const perk of run.activePerks) applyPerkOnCombatMount(perk, state.player);
     // Hand nach Perks neu auf handSize auffüllen (extra_hand_card-Perk).
     while (
       state.player.hand.length < state.player.handSize &&
@@ -72,9 +76,15 @@ export const Combat: Screen = (host, ctx) => {
   if (!sandboxMode && encounter?.enemyStartMana) {
     state.enemy.mana = Math.min(state.enemy.maxMana, encounter.enemyStartMana);
   }
+  // KI-Skalierung pro Akt: höhere Akte = schnellere Entscheidungen.
+  if (!sandboxMode && run) {
+    const scale = Math.max(0.6, 1 - (run.actNumber - 1) * 0.2);
+    state.enemy.aiDecisionIntervalSec = state.enemy.aiDecisionIntervalSec * scale;
+  }
 
+  const combatBgFile = combatBgForAct(run?.actNumber ?? 1, encounter?.id.startsWith('boss_') === true);
   host.innerHTML = `
-    <div class="cm-fit"><div class="cm-screen cm-combat" style="display:flex; flex-direction:column;">
+    <div class="cm-fit"><div class="cm-screen cm-combat" style="display:flex; flex-direction:column; background-image:${bgUrl(combatBgFile)}; background-size:cover; background-position:center;">
       <!-- HUD top -->
       <div class="cm-combat-hud" style="
         position:absolute; top:0; left:0; right:0; padding:18px 28px;
@@ -120,20 +130,17 @@ export const Combat: Screen = (host, ctx) => {
         </div>
       </div>
 
-      <!-- Battlefield Canvas -->
+      <!-- Battlefield Canvas — transparent, der Akt-Hintergrund ist die Bühne. -->
       <div style="position:absolute; top:160px; left:50%; transform:translateX(-50%); width:${FIELD_WIDTH}px; height:${FIELD_HEIGHT + 80}px; z-index:1;">
         <canvas data-slot="canvas" width="${FIELD_WIDTH}" height="${FIELD_HEIGHT + 80}" style="
           width:${FIELD_WIDTH}px; height:${FIELD_HEIGHT + 80}px;
-          border: 1px solid var(--line-soft); border-radius:4px;
-          background:
-            linear-gradient(180deg, #5a3f24 0%, #3a2818 60%, #2a1f14 100%);
-          box-shadow: var(--shadow);
+          background: transparent;
         "></canvas>
       </div>
 
-      <!-- Bottom panel -->
+      <!-- Bottom panel — Höhe passt zur neuen Karten-Aspect-Ratio (262px Hand-Karte) -->
       <div style="
-        position:absolute; bottom:0; left:0; right:0; height:240px;
+        position:absolute; bottom:0; left:0; right:0; height:300px;
         background: linear-gradient(180deg, transparent, #0f0c08 60%);
         border-top:1px solid var(--line-hi);
         display:grid; grid-template-columns: 320px 1fr 320px; gap:24px; padding:18px 32px;
@@ -161,8 +168,8 @@ export const Combat: Screen = (host, ctx) => {
         <!-- Deck / Log column -->
         <div style="display:flex; flex-direction:column; gap:8px;">
           <div style="display:flex; gap:8px;">
-            <div style="flex:1; background:var(--surface); border:1px solid var(--line); padding:8px 12px; border-radius:2px;">
-              <div class="cm-label">Deck</div>
+            <div style="flex:1; background:var(--surface); border:1px solid var(--line); padding:8px 12px; border-radius:2px;" title="Karten-Pool — der Pool wird beim Ziehen NICHT aufgebraucht.">
+              <div class="cm-label">Pool</div>
               <div data-slot="deck-count" style="font-family:'JetBrains Mono', monospace; font-size:16px; color:var(--ink);">0</div>
             </div>
             <div style="flex:1; background:var(--surface); border:1px solid var(--line); padding:8px 12px; border-radius:2px;">
@@ -223,7 +230,7 @@ export const Combat: Screen = (host, ctx) => {
     while (handHost.children.length < state.player.handSize) {
       const placeholder = document.createElement('div');
       placeholder.style.cssText = `
-        width:150px; height:218px; border:1px dashed rgba(240,200,120,.4);
+        width:150px; height:262px; border:1px dashed rgba(240,200,120,.4);
         border-radius:4px; display:flex; align-items:center; justify-content:center;
         font-family:'JetBrains Mono', monospace; font-size:9px; letter-spacing:0.22em;
         color:var(--ink-mute);
@@ -233,13 +240,20 @@ export const Combat: Screen = (host, ctx) => {
     }
   };
 
+  // Click-Spam-Guard: nach jedem Klick kurz blockieren, damit Doppelklicks
+  // (Maus-Bouncing, schnelle Double-Tap-Touchpads) nicht zwei Mal Mana abziehen.
+  let clickGuardUntil = 0;
   const playCard = (handIndex: number): void => {
     if (state.status !== 'running') return;
+    const now = performance.now();
+    if (now < clickGuardUntil) return;
+    clickGuardUntil = now + 80;
     const card = state.player.hand[handIndex];
     if (!card) return;
     if (!ManaSystem.spend(state.player, card)) return;
     DrawSystem.consume(state.player, handIndex);
     UnitSystem.spawn(state, card, 'player');
+    sfx.click();
     lastHandKey = ''; // erzwingt Re-Render
   };
 
@@ -312,8 +326,19 @@ export const Combat: Screen = (host, ctx) => {
     const isBossEncounter = encounter?.id.startsWith('boss_') === true;
     const isMiniBossEncounter = encounter?.id.startsWith('mini_boss_') === true;
     const inRoom = !sandboxMode && run ? isInRoom(run) : false;
+    const finalAct = !sandboxMode && run ? isFinalAct(run) : true;
     const title = kind === 'victory' ? 'Sieg' : 'Niederlage';
     const color = kind === 'victory' ? 'var(--c-natur)' : 'var(--c-krieg)';
+
+    // Karten-Drop bei Boss/Mini-Boss: 1 zufällige Karte aus dem Treasure-Pool.
+    let cardDrop: ReturnType<typeof getRandomDrops>[number] | null = null;
+    if (!sandboxMode && run && kind === 'victory' && (isBossEncounter || isMiniBossEncounter)) {
+      const dropRng = mulberry32(
+        (run.seed ^ run.actNumber ^ (encounter ? encounter.id.length * 7919 : 0)) >>> 0,
+      );
+      const [picked] = getRandomDrops(treasurePool, 1, dropRng);
+      cardDrop = picked ?? null;
+    }
 
     // Run-aware: Coins gutschreiben, Base-HP persistieren, Encounter freigeben.
     if (!sandboxMode && run && encounter) {
@@ -322,10 +347,16 @@ export const Combat: Screen = (host, ctx) => {
         // Base-HP-Differenz aus dem Combat zurück in den Run.
         const damage = run.baseHp - state.player.baseHp;
         if (damage > 0) damageBase(run, damage);
+        // Karten-Drop ins Deck übernehmen.
+        if (cardDrop) addCardToDeck(run, cardDrop);
         // Mini-Boss-Sieg = Exit-Gate: Welt-Knoten besucht + Raum verlassen.
         if (isMiniBossEncounter && run.activeWorldNodeId) {
           markNodeVisited(run, run.activeWorldNodeId);
           exitRoom(run);
+        }
+        // Boss-Sieg: Welt-Knoten ebenfalls als abgeschlossen markieren.
+        if (isBossEncounter) {
+          markNodeVisited(run, run.currentNodeId);
         }
       } else {
         // Niederlage: HP ist bereits 0, RunState wird nach gameover gecleart.
@@ -339,7 +370,9 @@ export const Combat: Screen = (host, ctx) => {
       : kind === 'defeat'
         ? 'Zum Endbildschirm'
         : isBossEncounter
-          ? 'Akt-Sieg'
+          ? finalAct
+            ? 'Run beenden'
+            : `Weiter zu Akt ${(run?.actNumber ?? 0) + 1}`
           : isMiniBossEncounter
             ? 'Raum verlassen'
             : inRoom
@@ -350,23 +383,41 @@ export const Combat: Screen = (host, ctx) => {
         restartSandbox();
         return;
       }
-      if (kind === 'defeat') ctx.go('gameover');
-      else if (isBossEncounter) ctx.go('victory');
-      else if (isMiniBossEncounter) ctx.go('worldmap');
+      if (kind === 'defeat') {
+        ctx.go('gameover');
+        return;
+      }
+      if (isBossEncounter) {
+        if (finalAct) {
+          ctx.go('victory');
+        } else if (run) {
+          advanceToNextAct(run);
+          ctx.go('worldmap');
+        }
+        return;
+      }
+      if (isMiniBossEncounter) ctx.go('worldmap');
       else if (inRoom) ctx.go('roommap');
       else ctx.go('worldmap');
     };
 
-    const coinLine =
-      !sandboxMode && encounter && kind === 'victory'
-        ? `<span class="cm-label">+${encounter.coinReward} COINS · BASE-HP ${Math.ceil(state.player.baseHp)}/${state.player.maxBaseHp}</span>`
-        : '';
+    const rewardLines: string[] = [];
+    if (!sandboxMode && encounter && kind === 'victory') {
+      rewardLines.push(
+        `<span class="cm-label">+${encounter.coinReward} COINS · BASE-HP ${Math.ceil(state.player.baseHp)}/${state.player.maxBaseHp}</span>`,
+      );
+      if (cardDrop) {
+        rewardLines.push(
+          `<span class="cm-label" style="color:var(--gold-hi);">Karten-Drop: ${cardDrop.name} ins Deck</span>`,
+        );
+      }
+    }
 
     showOverlay(`
       <div style="display:flex; flex-direction:column; align-items:center; gap:18px;">
         <h2 class="cm-display" style="margin:0; font-size:84px; color:${color}; text-shadow:0 0 40px ${color};">${title}</h2>
         <span class="cm-label" data-slot="result-stats">Dauer ${Math.floor(state.elapsedSec)}s · Units gespawnt: ${state.nextUnitId - 1}</span>
-        ${coinLine}
+        ${rewardLines.join('')}
         <div style="display:flex; gap:12px; margin-top:14px;">
           <button class="cm-btn cm-btn--gold" data-action="primary">${primaryLabel}</button>
           ${sandboxMode ? '<button class="cm-btn" data-action="menu">Zum Hauptmenü</button>' : ''}
@@ -400,8 +451,21 @@ export const Combat: Screen = (host, ctx) => {
     if (e.key === 'Escape') {
       if (state.status === 'running' || state.status === 'paused') togglePause();
     }
+    // M wird global in main.ts gehandhabt — wir spiegeln nur den HUD-Hint.
   };
   document.addEventListener('keydown', onKey);
+  const onMuteChange = (): void => {
+    updateHint();
+    logEvent(state, isMuted() ? 'Sound stumm' : 'Sound an');
+  };
+  window.addEventListener('chromatic:mute-changed', onMuteChange);
+
+  // Hint im HUD aktualisieren
+  const updateHint = (): void => {
+    const el = host.querySelector<HTMLElement>('[data-slot="hint"]');
+    if (el) el.textContent = `ESC PAUSE · M ${isMuted() ? 'TON AN' : 'TON AUS'}`;
+  };
+  updateHint();
 
   // === Render ===
   const render = (): void => {
@@ -419,13 +483,14 @@ export const Combat: Screen = (host, ctx) => {
     const ss = String(t % 60).padStart(2, '0');
     $('timer').textContent = `${mm}:${ss}`;
 
-    // EXP
+    // EXP — bei Pending-Level-Up Anzeige auf next clampen (sonst sieht man "15/5").
     $('player-level').textContent = String(state.player.level);
     const thresholdIdx = state.player.level - 1;
     const next = thresholdIdx < EXP_THRESHOLDS.length ? EXP_THRESHOLDS[thresholdIdx]! : state.player.exp;
-    $('exp-text').textContent = `${state.player.exp} / ${next}`;
+    const shownExp = Math.min(state.player.exp, next);
+    $('exp-text').textContent = `${shownExp} / ${next}`;
     const expFill = $('exp-fill');
-    const pct = next > 0 ? Math.min(1, state.player.exp / next) : 1;
+    const pct = next > 0 ? Math.min(1, shownExp / next) : 1;
     expFill.style.width = `${pct * 100}%`;
 
     // Hand
@@ -442,115 +507,168 @@ export const Combat: Screen = (host, ctx) => {
 
     // Hinweise
     $('regen-hint').textContent = `+${state.player.manaRegen.toFixed(0)} MANA / SEK.`;
-    $('draw-hint').textContent = `AUTO-DRAW ${state.player.drawIntervalSec.toFixed(0)}S`;
+    // Wenn Hand leer ist, zeige Countdown bis zum nächsten Auto-Draw —
+    // sonst sieht der Spieler nicht, dass das System gleich nachzieht.
+    const handEmpty = state.player.hand.length === 0;
+    if (handEmpty && state.player.deck.length > 0) {
+      const remaining = Math.max(0, state.player.drawIntervalSec - state.player.drawTimer);
+      $('draw-hint').textContent = `NACHZIEHEN IN ${remaining.toFixed(1)}S`;
+    } else {
+      $('draw-hint').textContent = `AUTO-DRAW ${state.player.drawIntervalSec.toFixed(0)}S`;
+    }
+
+    // Mana-Voll-Pulse: addiert/entfernt CSS-Klasse.
+    const manaEl = manaBar.el;
+    const isFull = state.player.mana >= state.player.maxMana;
+    manaEl.classList.toggle('cm-mana-bar--full', isFull);
+
+    // Base-Hit-Queue: für jedes Event HP-Bar-Flash neu auslösen + SFX.
+    while (state.baseHitFxQueue.length > 0) {
+      const evt = state.baseHitFxQueue.shift()!;
+      const el = evt.side === 'player' ? playerHp.el : enemyHp.el;
+      el.classList.remove('cm-hp-bar--hit');
+      // Force reflow → erlaubt die Animation, beim erneuten Klassen-Add wieder zu starten.
+      void el.offsetWidth;
+      el.classList.add('cm-hp-bar--hit');
+      sfx.baseHit();
+    }
+
+    // Sound-Queues (Phase 7): wenn SoundManager aktiv, hier triggern.
+    drainSoundQueues();
 
     // Canvas
     drawBattlefield();
   };
 
-  const drawBattlefield = (): void => {
-    cctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Ground gradient (oben Himmel, unten Erde)
-    const horizonY = 60;
-    const groundGrad = cctx.createLinearGradient(0, horizonY, 0, canvas.height);
-    groundGrad.addColorStop(0, '#3a2818');
-    groundGrad.addColorStop(0.4, '#2a1f14');
-    groundGrad.addColorStop(1, '#1a1109');
-    cctx.fillStyle = groundGrad;
-    cctx.fillRect(0, horizonY, canvas.width, canvas.height - horizonY);
-
-    // Berge (Silhouetten)
-    cctx.fillStyle = '#2a1f14';
-    cctx.beginPath();
-    cctx.moveTo(0, horizonY);
-    let x = 0;
-    while (x < canvas.width) {
-      const peak = horizonY - 18 - Math.sin((x / canvas.width) * Math.PI * 4) * 12;
-      cctx.lineTo(x, peak);
-      x += 40;
+  // Sound-Trigger: Queues vom Combat-State drainen und passende SFX abspielen.
+  // Limitiert auf max 3 SFX gleichzeitig pro Frame, damit kein Sound-Stau bei
+  // großen Combos entsteht.
+  let lastVictorySound = false;
+  let lastDefeatSound = false;
+  const drainSoundQueues = (): void => {
+    const spawns = state.spawnFxQueue.splice(0, 3);
+    for (const s of spawns) sfx.spawn(s.side);
+    const deaths = state.deathFxQueue.splice(0, 3);
+    for (let i = 0; i < deaths.length; i++) sfx.death();
+    if (state.baseHitFxQueue.length === 0) {
+      // baseHitFxQueue wird oben in der HP-Bar-Flash-Schleife geleert; daher
+      // hier nichts mehr zu tun — alle Drains laufen synchron in render().
     }
-    cctx.lineTo(canvas.width, horizonY);
-    cctx.closePath();
-    cctx.fill();
+    if (state.status === 'victory' && !lastVictorySound) {
+      sfx.victory();
+      lastVictorySound = true;
+    }
+    if (state.status === 'defeat' && !lastDefeatSound) {
+      sfx.defeat();
+      lastDefeatSound = true;
+    }
+  };
 
-    // Horizont-Linie
-    cctx.strokeStyle = 'rgba(214,169,85,0.35)';
-    cctx.beginPath();
-    cctx.moveTo(0, horizonY);
-    cctx.lineTo(canvas.width, horizonY);
-    cctx.stroke();
+  const drawBattlefield = (): void => {
+    cctx.save();
+    // Screen-Shake — kleiner zufälliger Versatz, klingt mit Restzeit ab.
+    if (state.screenShake.remainingSec > 0) {
+      const t = state.screenShake.remainingSec / 0.3;
+      const amp = state.screenShake.intensity * t;
+      cctx.translate((state.rng() - 0.5) * 2 * amp, (state.rng() - 0.5) * 2 * amp);
+    }
+    cctx.clearRect(-20, -20, canvas.width + 40, canvas.height + 40);
 
-    // Boden-Linie wo die Units stehen (zur Orientierung)
-    const groundY = horizonY + FIELD_HEIGHT / 2;
-    cctx.strokeStyle = 'rgba(255,255,255,0.05)';
-    cctx.setLineDash([4, 6]);
-    cctx.beginPath();
-    cctx.moveTo(40, groundY);
-    cctx.lineTo(canvas.width - 40, groundY);
-    cctx.stroke();
-    cctx.setLineDash([]);
+    // Hintergrund kommt vom Akt-Bild (CSS) — Canvas zeichnet nur Units & FX.
+    const horizonY = 60;
 
-    // Bases als stilisierte Türme
-    drawBase(PLAYER_BASE_X, COLORS_CSS.cNatur);
-    drawBase(ENEMY_BASE_X, COLORS_CSS.cKrieg);
-
-    // Units
+    // Units (inkl. sterbender mit Death-Anim)
     ComboAuraSystem.recomputeIfDirty(state);
     for (const u of state.units) {
-      if (!u.alive) continue;
       const color = colorToCss(u.card.color);
       const cy = horizonY + u.y;
       const hasCombo =
         (u.buffs.damage ?? 0) > 0 || (u.buffs.hp ?? 0) > 0 || (u.buffs.speed ?? 0) > 0;
 
-      // Combo-Glow
-      if (hasCombo) {
-        cctx.fillStyle = color + '44';
+      // Death-Anim: schrumpfen + fade.
+      let radius = UNIT_RADIUS;
+      let alpha = 1;
+      if (!u.alive && u.deathAge !== null) {
+        const t = Math.min(1, u.deathAge / DEATH_ANIM_SEC);
+        radius = UNIT_RADIUS * (1 - t * 0.7);
+        alpha = 1 - t;
+      }
+      cctx.globalAlpha = alpha;
+
+      // Combo-Glow (nur lebende Units)
+      if (hasCombo && u.alive) {
+        cctx.fillStyle = color + '55';
         cctx.beginPath();
-        cctx.arc(u.x, cy, UNIT_RADIUS + 8, 0, Math.PI * 2);
+        cctx.arc(u.x, cy, radius + 8, 0, Math.PI * 2);
         cctx.fill();
+        // Zweiter Ring für Class-Combo (subtiler heller Pulse)
+        if ((u.buffs.damage ?? 0) > 0 && (u.buffs.hp ?? 0) > 0) {
+          cctx.strokeStyle = color;
+          cctx.lineWidth = 1.5;
+          cctx.beginPath();
+          cctx.arc(u.x, cy, radius + 11, 0, Math.PI * 2);
+          cctx.stroke();
+        }
       }
 
+      // Spawn-Flash — kurzer weißer Schein während u.spawnAge < SPAWN_FLASH_SEC.
+      const flashT =
+        u.alive && u.spawnAge < SPAWN_FLASH_SEC ? 1 - u.spawnAge / SPAWN_FLASH_SEC : 0;
+
       // Body
-      cctx.fillStyle = color;
+      cctx.fillStyle = u.alive && !u.deathAge ? color : color;
       cctx.strokeStyle = u.side === 'player' ? COLORS_CSS.ink : '#1a0d08';
       cctx.lineWidth = 2;
       cctx.beginPath();
-      cctx.arc(u.x, cy, UNIT_RADIUS, 0, Math.PI * 2);
+      cctx.arc(u.x, cy, radius, 0, Math.PI * 2);
       cctx.fill();
       cctx.stroke();
 
-      // HP-Bar drüber
-      const hpW = UNIT_RADIUS * 2;
-      const pct = Math.max(0, u.currentHp / u.baseStats.hp);
-      cctx.fillStyle = '#000';
-      cctx.fillRect(u.x - UNIT_RADIUS, cy - UNIT_RADIUS - 8, hpW, 4);
-      cctx.fillStyle = pct > 0.5 ? COLORS_CSS.hp : COLORS_CSS.hpBad;
-      cctx.fillRect(u.x - UNIT_RADIUS, cy - UNIT_RADIUS - 8, hpW * pct, 4);
+      if (flashT > 0) {
+        cctx.fillStyle = `rgba(255,255,255,${(flashT * 0.55).toFixed(3)})`;
+        cctx.beginPath();
+        cctx.arc(u.x, cy, radius, 0, Math.PI * 2);
+        cctx.fill();
+      }
+      // Death-Flash (roter Pulse in den ersten 100ms nach Tod)
+      if (!u.alive && u.deathAge !== null && u.deathAge < 0.1) {
+        cctx.fillStyle = `rgba(255,80,60,${(1 - u.deathAge / 0.1).toFixed(3)})`;
+        cctx.beginPath();
+        cctx.arc(u.x, cy, radius + 4, 0, Math.PI * 2);
+        cctx.fill();
+      }
 
-      // Side-Indicator: kleiner Punkt
-      cctx.fillStyle = u.side === 'player' ? COLORS_CSS.cNatur : COLORS_CSS.cKrieg;
-      cctx.beginPath();
-      cctx.arc(u.x, cy + UNIT_RADIUS + 6, 2, 0, Math.PI * 2);
-      cctx.fill();
-    }
-  };
+      // HP-Bar drüber (nur lebende)
+      if (u.alive) {
+        const hpW = UNIT_RADIUS * 2;
+        const pct = Math.max(0, u.currentHp / u.baseStats.hp);
+        cctx.fillStyle = '#000';
+        cctx.fillRect(u.x - UNIT_RADIUS, cy - UNIT_RADIUS - 8, hpW, 4);
+        cctx.fillStyle = pct > 0.5 ? COLORS_CSS.hp : COLORS_CSS.hpBad;
+        cctx.fillRect(u.x - UNIT_RADIUS, cy - UNIT_RADIUS - 8, hpW * pct, 4);
 
-  const drawBase = (x: number, color: string): void => {
-    const horizonY = 60;
-    const baseY = horizonY + FIELD_HEIGHT / 2 + 30;
-    cctx.fillStyle = '#1a1109';
-    cctx.fillRect(x - 22, baseY - 80, 44, 80);
-    cctx.fillStyle = color;
-    cctx.fillRect(x - 22, baseY - 80, 44, 4);
-    // Zinnen
-    for (let i = 0; i < 4; i++) {
-      cctx.fillStyle = '#1a1109';
-      cctx.fillRect(x - 22 + i * 11 + 2, baseY - 88, 7, 8);
+        // Side-Indicator: kleiner Punkt
+        cctx.fillStyle = u.side === 'player' ? COLORS_CSS.cNatur : COLORS_CSS.cKrieg;
+        cctx.beginPath();
+        cctx.arc(u.x, cy + UNIT_RADIUS + 6, 2, 0, Math.PI * 2);
+        cctx.fill();
+      }
+      cctx.globalAlpha = 1;
     }
-    cctx.fillStyle = color;
-    cctx.fillRect(x - 4, baseY - 60, 8, 20);
+
+    // Floating-Damage-Numbers — steigen auf und faden.
+    cctx.textAlign = 'center';
+    cctx.font = "bold 14px 'JetBrains Mono', monospace";
+    for (const dn of state.damageNumbers) {
+      const t = dn.age / DAMAGE_NUMBER_LIFE_SEC;
+      const yOff = -t * 28;
+      cctx.globalAlpha = Math.max(0, 1 - t);
+      cctx.fillStyle = dn.color;
+      cctx.fillText(dn.text, dn.x, horizonY + dn.y + yOff);
+      cctx.globalAlpha = 1;
+    }
+
+    cctx.restore();
   };
 
   const escapeHtml = (s: string): string =>
@@ -580,5 +698,6 @@ export const Combat: Screen = (host, ctx) => {
   return () => {
     clearInterval(intervalId);
     document.removeEventListener('keydown', onKey);
+    window.removeEventListener('chromatic:mute-changed', onMuteChange);
   };
 };

@@ -1,6 +1,5 @@
 import type { Card } from '../../domain/Card';
 import type { Side } from '../../domain/Side';
-import { AI_DECISION_INTERVAL_SEC } from '../data/balance';
 import type { CombatState, SideState } from './CombatState';
 import { ManaSystem } from './ManaSystem';
 import { DrawSystem } from './DrawSystem';
@@ -21,7 +20,7 @@ export const AiController = {
       s.aiDecisionCooldown = Math.max(0, s.aiDecisionCooldown - dt);
       return;
     }
-    s.aiDecisionCooldown = AI_DECISION_INTERVAL_SEC;
+    s.aiDecisionCooldown = s.aiDecisionIntervalSec;
 
     const playableIndices = s.hand
       .map((card, idx) => ({ card, idx }))

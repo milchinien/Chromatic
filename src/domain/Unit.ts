@@ -14,6 +14,14 @@ export interface Unit {
   attackCooldown: number;
   alive: boolean;
   hpThresholdFired: boolean;
+  /** Sekunden seit Spawn — Renderer nutzt das für Spawn-Flash. */
+  spawnAge: number;
+  /** Sekunden seit Tod (null solange alive). Renderer nutzt das für Shrink/Fade.
+   *  Sobald > DEATH_ANIM_SEC wird die Unit aus state.units gefiltert. */
+  deathAge: number | null;
+  /** Bevorzugte Y-Position (Lane nach Klasse). Bewegung zieht zur Lane, damit
+   *  Reittiere flankieren statt im Frontline-Stau zu blockieren. */
+  laneY: number;
 }
 
 export const effectiveStats = (u: Unit): UnitStats => ({

@@ -7,8 +7,10 @@ import {
 import { getCurrentRun, setActiveEncounter, clearCurrentRun } from '../systems/run/currentRun';
 import { encounterForNodeType } from '../systems/data/encounters';
 import { getOrCreateRoomMap } from '../systems/run/RoomMapGenerator';
+import { actName } from '../systems/run/MapGenerator';
 import { mulberry32 } from '../systems/rng';
 import { renderRoomTile, roomTileSize } from '../ui/RoomTile';
+import { BG, bgUrl } from '../ui/backgrounds';
 
 // Welt-Karte-Screen. Liest aktiven Run aus currentRun-Singleton. Wenn kein
 // Run aktiv ist (z.B. direkter Aufruf), zurück ins Hauptmenü.
@@ -64,14 +66,14 @@ export const WorldMap: Screen = (host, ctx) => {
   })();
 
   host.innerHTML = `
-    <div class="cm-fit"><div class="cm-screen">
+    <div class="cm-fit"><div class="cm-screen" style="background-image:${bgUrl(BG.worldmap!)}; background-size:cover; background-position:center;">
       <!-- HUD -->
       <div class="cm-hud">
         <div class="cm-hud-left">
           <button class="cm-btn cm-btn--ghost" data-action="exit" style="padding:6px 10px;">◀ Verlassen</button>
           <div class="cm-act">
             <span class="cm-act-label">AKT 0${run.actNumber} · WELT-KARTE</span>
-            <span class="cm-act-name">Verfluchter Hain</span>
+            <span class="cm-act-name">${actName(run.actNumber)}</span>
           </div>
         </div>
         <div class="cm-hud-right">
@@ -158,7 +160,7 @@ export const WorldMap: Screen = (host, ctx) => {
 
     // Boss-Welt-Knoten überspringt die Sub-Map und startet direkt den Boss-Combat.
     if (node.type === 'boss') {
-      const enc = encounterForNodeType('boss');
+      const enc = encounterForNodeType('boss', run.actNumber);
       if (enc) {
         setActiveEncounter(enc);
         ctx.go('combat');

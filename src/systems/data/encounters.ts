@@ -18,24 +18,35 @@ const ids = (...xs: string[]): readonly string[] => Object.freeze(xs);
 export const encounters: Readonly<Record<string, Encounter>> = {
   combat_normal_act1: {
     id: 'combat_normal_act1',
-    deckIds: ids('skelett', 'skelett', 'jaeger', 'druide', 'wachposten', 'stein-magier', 'hain-waechter', 'wanderheiler'),
+    // Gemischter Pool, billig, ohne starke Combo-Synergie.
+    deckIds: ids(
+      'grabwaechter',
+      'seelenheiler',
+      'knochenross',
+      'nekromant',
+      'steinhueter',
+      'steinwolf',
+      'wanderkamel',
+      'gebetswirker',
+    ),
     coinReward: 30,
   },
   combat_hard_act1: {
     id: 'combat_hard_act1',
+    // Mehr Karten + Festungen → härter zu durchbrechen.
     deckIds: ids(
-      'skelett',
-      'skelett',
-      'jaeger',
-      'jaeger',
-      'berserker',
-      'wachposten',
-      'wachposten',
-      'blutreiter',
-      'stein-golem',
+      'grabwaechter',
+      'grabwaechter',
+      'totenzitadelle',
+      'knochenross',
+      'knochenross',
       'nekromant',
-      'druide',
-      'hain-waechter',
+      'seelenheiler',
+      'steinfestung',
+      'steinwolf',
+      'steinbeschwoerer',
+      'kriegsfeste',
+      'soeldner',
     ),
     coinReward: 60,
     enemyStartMana: 25,
@@ -46,53 +57,66 @@ export const encounters: Readonly<Record<string, Encounter>> = {
     id: 'mini_boss_act1',
     deckIds: ids(
       'berserker',
-      'wachposten',
-      'blutreiter',
-      'stein-golem',
+      'kriegsfeste',
+      'kriegspferd',
+      'feuermagier',
+      'kriegssanitaeter',
+      'grabwaechter',
+      'knochenross',
       'nekromant',
-      'jaeger',
-      'jaeger',
-      'skelett',
-      'skelett',
-      'druide',
-      'wachposten',
+      'totenzitadelle',
+      'seelenheiler',
+      'soeldner',
     ),
     coinReward: 100,
     enemyStartMana: 25,
   },
   boss_act1: {
     id: 'boss_act1',
-    // Aggressives Krieg-fokussiertes Deck mit Combo-Synergie.
+    // Aggressives Krieg-fokussiertes Deck mit Class- und Color-Combos.
     deckIds: ids(
       'berserker',
       'berserker',
-      'blutreiter',
-      'blutreiter',
-      'wachposten',
-      'wachposten',
+      'kriegsfeste',
+      'kriegsfeste',
+      'kriegspferd',
+      'kriegspferd',
+      'feuermagier',
+      'kriegssanitaeter',
+      'grabwaechter',
+      'totenzitadelle',
+      'knochenross',
       'nekromant',
-      'stein-golem',
-      'stein-magier',
-      'skelett',
-      'skelett',
-      'meteor',
-      'druide',
-      'hain-waechter',
-      'jaeger',
+      'seelenheiler',
+      'steinfestung',
+      'handelsposten',
     ),
     coinReward: 150,
     enemyStartMana: 30,
   },
 };
 
-export const encounterForNodeType = (type: NodeType): Encounter | null => {
+/** Akt-Skalierung: pro Akt mehr Start-Mana, mehr Coins, ggf. mehr Karten im Deck. */
+const scaleForAct = (base: Encounter, actNumber: number): Encounter => {
+  if (actNumber <= 1) return base;
+  const scale = actNumber - 1;
+  return {
+    ...base,
+    // Decks wachsen mit Akt — mehr verschiedene Spawns möglich.
+    deckIds: base.deckIds,
+    coinReward: base.coinReward + 20 * scale,
+    enemyStartMana: (base.enemyStartMana ?? 0) + 10 * scale,
+  };
+};
+
+export const encounterForNodeType = (type: NodeType, actNumber = 1): Encounter | null => {
   switch (type) {
     case 'combat_normal':
-      return encounters.combat_normal_act1!;
+      return scaleForAct(encounters.combat_normal_act1!, actNumber);
     case 'combat_hard':
-      return encounters.combat_hard_act1!;
+      return scaleForAct(encounters.combat_hard_act1!, actNumber);
     case 'boss':
-      return encounters.boss_act1!;
+      return scaleForAct(encounters.boss_act1!, actNumber);
     default:
       return null;
   }
@@ -100,12 +124,12 @@ export const encounterForNodeType = (type: NodeType): Encounter | null => {
 
 import type { SubNodeType } from '../../domain/Run';
 
-export const encounterForSubNodeType = (type: SubNodeType): Encounter | null => {
+export const encounterForSubNodeType = (type: SubNodeType, actNumber = 1): Encounter | null => {
   switch (type) {
     case 'sub_combat':
-      return encounters.combat_normal_act1!;
+      return scaleForAct(encounters.combat_normal_act1!, actNumber);
     case 'mini_boss':
-      return encounters.mini_boss_act1!;
+      return scaleForAct(encounters.mini_boss_act1!, actNumber);
     default:
       return null;
   }

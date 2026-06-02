@@ -8,6 +8,7 @@ import {
 import { getCurrentRun, setActiveEncounter } from '../systems/run/currentRun';
 import { encounterForSubNodeType } from '../systems/data/encounters';
 import { renderSubTile, subTileSize } from '../ui/SubTile';
+import { BG, bgUrl } from '../ui/backgrounds';
 
 const MAP_LEFT = 140;
 const MAP_RIGHT = 1140;
@@ -76,10 +77,9 @@ export const RoomMap: Screen = (host, ctx) => {
   const worldLabel = WORLD_TYPE_LABEL[room.worldNodeType] ?? room.worldNodeType;
 
   host.innerHTML = `
-    <div class="cm-fit"><div class="cm-screen" style="background: radial-gradient(ellipse at 50% 0%, #2a3340 0%, #1f2530 55%, #181c25 100%);">
+    <div class="cm-fit"><div class="cm-screen" style="background-image:${bgUrl(BG.roommap!)}; background-size:cover; background-position:center;">
       <div class="cm-hud">
         <div class="cm-hud-left">
-          <button class="cm-btn cm-btn--ghost" data-action="exit-room" style="padding:6px 10px;">◀ Raum verlassen</button>
           <div class="cm-act">
             <span class="cm-act-label">AKT 0${run.actNumber} · RAUM-KARTE</span>
             <span class="cm-act-name">${worldLabel}</span>
@@ -139,13 +139,6 @@ export const RoomMap: Screen = (host, ctx) => {
     nodesHost.appendChild(wrap);
   }
 
-  host.querySelector<HTMLButtonElement>('[data-action="exit-room"]')!.addEventListener('click', () => {
-    // Raum vorzeitig verlassen: Welt-Knoten bleibt unvisited, Spieler bricht ab.
-    // Plan sieht das nicht explizit vor, ist aber nutzerfreundlich.
-    exitRoom(run);
-    ctx.go('worldmap');
-  });
-
   function onSubClick(subId: string): void {
     if (!run || !run.activeWorldNodeId) return;
     const node = room!.nodes.find((n) => n.id === subId);
@@ -162,7 +155,7 @@ export const RoomMap: Screen = (host, ctx) => {
       ctx.go('treasure');
       return;
     }
-    const enc = encounterForSubNodeType(node.type);
+    const enc = encounterForSubNodeType(node.type, run.actNumber);
     if (enc) {
       setActiveEncounter(enc);
       ctx.go('combat');

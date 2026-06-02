@@ -1,8 +1,11 @@
 import type { Screen } from '../router';
 import { getCurrentRun } from '../systems/run/currentRun';
-import { PERKS } from '../systems/data/perks';
+import { markNodeVisited } from '../systems/run/RunState';
+import { sfx } from '../systems/audio';
+import { PERKS, applyPerkOnChoose } from '../systems/data/perks';
 import { mulberry32 } from '../systems/rng';
 import type { Perk } from '../domain/Run';
+import { BG, bgUrl } from '../ui/backgrounds';
 
 const NUM_OFFERS = 3;
 
@@ -56,7 +59,7 @@ export const PerkSelect: Screen = (host, ctx) => {
   let selectedIdx = already ? offers.findIndex((p) => p.id === already) : -1;
 
   host.innerHTML = `
-    <div class="cm-fit"><div class="cm-screen">
+    <div class="cm-fit"><div class="cm-screen" style="background-image:${bgUrl(BG.perk!)}; background-size:cover; background-position:center;">
       <div class="cm-hud">
         <div class="cm-hud-left">
           <div class="cm-act">
@@ -234,7 +237,13 @@ export const PerkSelect: Screen = (host, ctx) => {
       color: perk.color,
     };
     run.activePerks.push(stored);
+    // Permanente Effekte auf Run-State sofort anwenden (z.B. base_hp_plus_20
+    // erhöht run.maxBaseHp + heilt). Side-Effekte folgen beim nächsten Combat.
+    applyPerkOnChoose(stored, run);
     chosenByNode.set(nodeId, perk.id);
+    // Perk-Knoten abgeschlossen.
+    markNodeVisited(run, run.currentNodeId);
+    sfx.perk();
     ctx.go('worldmap');
   });
 };

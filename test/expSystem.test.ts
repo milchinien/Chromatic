@@ -6,22 +6,22 @@ import { mulberry32 } from '../src/systems/rng';
 describe('ExpSystem', () => {
   it('setzt pendingLevelUp wenn Spieler-EXP die Schwelle übersteigt', () => {
     const s = createCombatState([], [], mulberry32(0));
-    s.player.exp = 5; // erste Schwelle ist 5
+    s.player.exp = 10; // erste Schwelle
     ExpSystem.check(s);
     expect(s.pendingLevelUp).toBe('player');
   });
 
   it('priorisiert Spieler vor Gegner bei gleichzeitigem Level-Up', () => {
     const s = createCombatState([], [], mulberry32(0));
-    s.player.exp = 5;
-    s.enemy.exp = 5;
+    s.player.exp = 10;
+    s.enemy.exp = 10;
     ExpSystem.check(s);
     expect(s.pendingLevelUp).toBe('player');
   });
 
   it('applyLevelUp erhöht Level und konsumiert pendingLevelUp', () => {
     const s = createCombatState([], [], mulberry32(0));
-    s.player.exp = 5;
+    s.player.exp = 10;
     ExpSystem.check(s);
     applyLevelUp(s, 'player', 'maxMana');
     expect(s.player.level).toBe(2);
@@ -44,8 +44,11 @@ describe('ExpSystem', () => {
       attackCooldown: 0,
       alive: true,
       hpThresholdFired: false,
+      spawnAge: 0,
+      deathAge: null,
+      laneY: 0,
     });
-    s.player.exp = 5;
+    s.player.exp = 10;
     ExpSystem.check(s);
     applyLevelUp(s, 'player', 'damage');
     expect(s.player.globalDamageBonus).toBe(5);

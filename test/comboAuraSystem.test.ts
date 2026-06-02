@@ -34,6 +34,9 @@ const unit = (id: string, side: 'player' | 'enemy', c: Card): Unit => ({
   attackCooldown: 0,
   alive: true,
   hpThresholdFired: false,
+  spawnAge: 0,
+  deathAge: null,
+  laneY: 0,
 });
 
 const stateWith = (units: Unit[]): CombatState =>

@@ -1,10 +1,12 @@
 import type { Screen } from '../router';
 import type { Card } from '../domain/Card';
-import { addCardToDeck, addCoins, healBase, isInRoom, locationKey } from '../systems/run/RunState';
+import { addCardToDeck, addCoins, healBase, isInRoom, locationKey, markNodeVisited } from '../systems/run/RunState';
 import { getCurrentRun } from '../systems/run/currentRun';
 import { getRandomDrops, treasurePool } from '../systems/data/dropPool';
 import { mulberry32, randInt } from '../systems/rng';
 import { renderCardView } from '../ui/CardView';
+import { sfx } from '../systems/audio';
+import { BG, bgUrl } from '../ui/backgrounds';
 
 type RewardKind = 'coins' | 'card' | 'heal';
 const COINS_AMOUNT = 50;
@@ -39,8 +41,19 @@ export const Treasure: Screen = (host, ctx) => {
   const rng = mulberry32(seedFromKey(run.seed, nodeId));
 
   // 1/3 Coins, 1/3 Karte, 1/3 Heilung — per Seed deterministisch.
+  // Wenn HP voll und Heal gerollt würde, würfeln wir nochmal — sonst entsteht
+  // eine sichtbar leere Belohnung trotz "+30 HP".
   const kinds: RewardKind[] = ['coins', 'card', 'heal'];
-  const chosen: RewardKind = previous?.kind ?? kinds[randInt(rng, 0, kinds.length)]!;
+  let chosen: RewardKind;
+  if (previous?.kind) {
+    chosen = previous.kind;
+  } else {
+    chosen = kinds[randInt(rng, 0, kinds.length)]!;
+    if (chosen === 'heal' && run.baseHp >= run.maxBaseHp) {
+      // Bei voller HP: zwischen Coins und Karte würfeln.
+      chosen = rng() < 0.5 ? 'coins' : 'card';
+    }
+  }
   const cardDrop: Card | undefined =
     chosen === 'card'
       ? (() => {
@@ -53,10 +66,22 @@ export const Treasure: Screen = (host, ctx) => {
       : undefined;
 
   const isFirstVisit = !previous;
+  // Tatsächlich geheilte Menge — bei voller HP käme hier 0 raus, daher der
+  // Pre-Reroll oben. Für die UI brauchen wir aber den ehrlichen Wert.
+  let actualHeal = 0;
   if (isFirstVisit) {
-    if (chosen === 'coins') addCoins(run, COINS_AMOUNT);
-    else if (chosen === 'card' && cardDrop) addCardToDeck(run, cardDrop);
-    else if (chosen === 'heal') healBase(run, HEAL_AMOUNT);
+    if (chosen === 'coins') {
+      addCoins(run, COINS_AMOUNT);
+      sfx.coin();
+    } else if (chosen === 'card' && cardDrop) {
+      addCardToDeck(run, cardDrop);
+      sfx.coin();
+    } else if (chosen === 'heal') {
+      const before = run.baseHp;
+      healBase(run, HEAL_AMOUNT);
+      actualHeal = run.baseHp - before;
+      sfx.coin();
+    }
     collectedByNode.set(nodeId, { kind: chosen, cardId: cardDrop?.id });
   }
 
@@ -66,11 +91,13 @@ export const Treasure: Screen = (host, ctx) => {
       ? `+${COINS_AMOUNT} Coins`
       : chosen === 'card' && cardDrop
         ? `${cardDrop.name} ins Deck`
-        : `+${HEAL_AMOUNT} HP geheilt`
+        : actualHeal > 0
+          ? `+${actualHeal} HP geheilt`
+          : 'Bereits volle HP'
     : 'Die Schatztruhe ist bereits leer.';
 
   host.innerHTML = `
-    <div class="cm-fit"><div class="cm-screen" style="display:flex; align-items:center; justify-content:center;">
+    <div class="cm-fit"><div class="cm-screen" style="display:flex; align-items:center; justify-content:center; background-image:${bgUrl(BG.treasure!)}; background-size:cover; background-position:center;">
       <div class="cm-hud">
         <div class="cm-hud-left">
           <div class="cm-act">
@@ -108,7 +135,14 @@ export const Treasure: Screen = (host, ctx) => {
   }
 
   host.querySelector<HTMLButtonElement>('[data-action="continue"]')!.addEventListener('click', () => {
-    ctx.go(isInRoom(run) ? 'roommap' : 'worldmap');
+    if (isInRoom(run)) {
+      // Sub-Map-Treasure: kein Welt-Knoten-Visit, nur zurück in den Raum.
+      ctx.go('roommap');
+    } else {
+      // Welt-Karten-Treasure: Knoten abgeschlossen.
+      markNodeVisited(run, run.currentNodeId);
+      ctx.go('worldmap');
+    }
   });
 };
 

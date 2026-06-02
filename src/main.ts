@@ -1,5 +1,6 @@
 import './styles.css';
 import { router } from './router';
+import { toggleMute } from './systems/audio';
 import { MainMenu } from './screens/MainMenu';
 import { WorldMap } from './screens/WorldMap';
 import { Combat } from './screens/Combat';
@@ -9,6 +10,7 @@ import { Shop } from './screens/Shop';
 import { Treasure } from './screens/Treasure';
 import { RoomMap } from './screens/RoomMap';
 import { PerkSelect } from './screens/PerkSelect';
+import { CardGallery } from './screens/CardGallery';
 
 // Design-Auflösung — alle Screens werden in dieser Koordinatengröße entworfen
 // und per CSS-Transform auf den tatsächlichen Viewport skaliert (siehe .cm-fit
@@ -33,6 +35,19 @@ router.register('shop', Shop);
 router.register('treasure', Treasure);
 router.register('roommap', RoomMap);
 router.register('perk', PerkSelect);
+router.register('gallery', CardGallery);
 
 router.mount(document.getElementById('app')!);
 router.go('menu');
+
+// Globaler Mute-Toggle — M wirkt auf jedem Screen.
+// Screens, die den HUD-Hint nach Mute aktualisieren wollen, hören selber zu
+// (capture-Phase) und rufen ihre Update-Logik auf. Den eigentlichen State-Toggle
+// macht dieser globale Handler — nicht die Screens.
+window.addEventListener('keydown', (e) => {
+  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+  if (e.key === 'm' || e.key === 'M') {
+    toggleMute();
+    window.dispatchEvent(new CustomEvent('chromatic:mute-changed'));
+  }
+});

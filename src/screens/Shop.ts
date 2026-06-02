@@ -1,10 +1,12 @@
 import type { Screen } from '../router';
 import type { Card } from '../domain/Card';
-import { addCardToDeck, addCoins } from '../systems/run/RunState';
+import { addCardToDeck, addCoins, markNodeVisited } from '../systems/run/RunState';
 import { getCurrentRun } from '../systems/run/currentRun';
 import { getRandomDrops, shopPool, shopPriceOf } from '../systems/data/dropPool';
 import { mulberry32 } from '../systems/rng';
 import { renderCardView } from '../ui/CardView';
+import { sfx } from '../systems/audio';
+import { BG, bgUrl } from '../ui/backgrounds';
 
 const NUM_OFFERS = 4;
 
@@ -54,7 +56,7 @@ export const Shop: Screen = (host, ctx) => {
   let selectedIdx = -1;
 
   host.innerHTML = `
-    <div class="cm-fit"><div class="cm-screen">
+    <div class="cm-fit"><div class="cm-screen" style="background-image:${bgUrl(BG.shop!)}; background-size:cover; background-position:center;">
       <div class="cm-hud">
         <div class="cm-hud-left">
           <button class="cm-btn cm-btn--ghost" data-action="leave" style="padding:6px 10px;">◀ Verlassen</button>
@@ -166,6 +168,7 @@ export const Shop: Screen = (host, ctx) => {
     addCoins(run, -price);
     addCardToDeck(run, card);
     purchased!.add(card.id);
+    sfx.coin();
     updateCoins();
     renderOffers();
     renderInfo(idx);
@@ -223,6 +226,8 @@ export const Shop: Screen = (host, ctx) => {
   if (offers.length > 0) renderInfo(0);
 
   host.querySelector<HTMLButtonElement>('[data-action="leave"]')!.addEventListener('click', () => {
+    // Shop-Verlassen schließt den Welt-Knoten ab.
+    markNodeVisited(run, run.currentNodeId);
     ctx.go('worldmap');
   });
 

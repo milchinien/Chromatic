@@ -4,18 +4,23 @@ import { clearCurrentRun, setActiveEncounter, setCurrentRun } from '../systems/r
 import { resetShopPurchases } from './Shop';
 import { resetTreasureCollections } from './Treasure';
 import { resetPerkSelections } from './PerkSelect';
+import { isMuted, toggleMute } from '../systems/audio';
+import { BG, bgUrl } from '../ui/backgrounds';
 
 /**
  * Hauptmenü — 1:1-Port von design/project/screens/menu.jsx.
  * Klassen aus src/styles.css: cm-screen, cm-chip, cm-display, cm-label.
  * Restliches Styling inline, exakt wie im JSX-Original.
  */
+type MenuAction = 'options' | 'credits' | 'quit';
+
 export const MainMenu: Screen = (host, ctx) => {
-  const items: ReadonlyArray<{ label: string; primary?: boolean; screen?: string }> = [
+  const items: ReadonlyArray<{ label: string; primary?: boolean; screen?: string; action?: MenuAction }> = [
     { label: 'Spielen', primary: true, screen: 'worldmap' },
-    { label: 'Optionen' },
-    { label: 'Credits' },
-    { label: 'Beenden' },
+    { label: 'Karten', screen: 'gallery' },
+    { label: 'Optionen', action: 'options' },
+    { label: 'Credits', action: 'credits' },
+    { label: 'Beenden', action: 'quit' },
   ];
 
   const chips = ['natur', 'krieg', 'stein', 'untot', 'farblos']
@@ -55,7 +60,7 @@ export const MainMenu: Screen = (host, ctx) => {
     .join('');
 
   host.innerHTML = `
-    <div class="cm-fit"><div class="cm-screen" style="display:flex; align-items:center; justify-content:center;">
+    <div class="cm-fit"><div class="cm-screen" style="display:flex; align-items:center; justify-content:center; background-image:${bgUrl(BG.menu!)}; background-size:cover; background-position:center;">
       <svg style="position:absolute; inset:0; width:100%; height:100%;" preserveAspectRatio="none" viewBox="0 0 1280 800">
         <defs>
           <radialGradient id="mm-glow" cx="50%" cy="20%" r="60%">
@@ -103,46 +108,141 @@ export const MainMenu: Screen = (host, ctx) => {
         <div style="display:flex; gap:24px; color:var(--ink-mute); font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:0.2em; text-transform:uppercase;">
           <span>↑↓ Auswählen</span>
           <span>↵ Bestätigen</span>
-          <span>ESC Zurück</span>
+          <span>M Ton ${isMuted() ? 'an' : 'aus'}</span>
         </div>
       </div>
+
+      <!-- Stub-Overlay für Optionen/Credits/Beenden -->
+      <div data-slot="overlay" style="position:absolute; inset:0; z-index:10; display:none; align-items:center; justify-content:center; background:rgba(15,12,8,0.72);"></div>
     </div></div>
   `;
 
   // Alten Run beim Menü-Aufruf wegwerfen — verhindert Carry-Over zwischen Runs.
   clearCurrentRun();
 
-  // Interaktivität
+  // Auswahl-Index für Tastatur-Navigation
+  let selectedIdx = 0;
+
+  const overlay = host.querySelector<HTMLElement>('[data-slot="overlay"]')!;
+  const closeOverlay = (): void => {
+    overlay.style.display = 'none';
+    overlay.innerHTML = '';
+  };
+  const showOverlay = (html: string): void => {
+    overlay.innerHTML = html;
+    overlay.style.display = 'flex';
+    overlay.querySelector<HTMLButtonElement>('[data-action="close"]')?.addEventListener('click', closeOverlay);
+  };
+
+  const openOptions = (): void => {
+    showOverlay(`
+      <div style="display:flex; flex-direction:column; align-items:center; gap:18px; min-width:360px; padding:24px; background:linear-gradient(180deg, var(--surface-2), var(--surface)); border:1px solid var(--line-hi); border-radius:6px;">
+        <h2 class="cm-display" style="margin:0; font-size:36px; color:var(--gold-hi);">Optionen</h2>
+        <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+          <span class="cm-label">Ton</span>
+          <button class="cm-btn cm-btn--ghost" data-action="mute">${isMuted() ? 'Stumm — einschalten' : 'An — stummschalten'}</button>
+        </div>
+        <span class="cm-label" style="color:var(--ink-mute);">Weitere Optionen folgen.</span>
+        <button class="cm-btn" data-action="close">Schließen</button>
+      </div>
+    `);
+    const muteBtn = overlay.querySelector<HTMLButtonElement>('[data-action="mute"]')!;
+    muteBtn.addEventListener('click', () => {
+      toggleMute();
+      openOptions();
+    });
+  };
+
+  const openCredits = (): void => {
+    showOverlay(`
+      <div style="display:flex; flex-direction:column; align-items:center; gap:14px; min-width:420px; padding:28px; background:linear-gradient(180deg, var(--surface-2), var(--surface)); border:1px solid var(--line-hi); border-radius:6px; text-align:center;">
+        <h2 class="cm-display" style="margin:0; font-size:36px; color:var(--gold-hi);">Credits</h2>
+        <div style="display:flex; flex-direction:column; gap:8px; color:var(--ink-dim); font-family:'IBM Plex Sans', sans-serif; font-size:13px;">
+          <span><strong style="color:var(--ink);">Chromatic</strong> — Pre-Alpha</span>
+          <span>Design &amp; Code: Michel Waggoner</span>
+          <span>Engine: TypeScript, Vite, DOM &amp; Canvas</span>
+          <span>SFX: Prozedural via Web-Audio</span>
+        </div>
+        <button class="cm-btn" data-action="close">Schließen</button>
+      </div>
+    `);
+  };
+
+  const openQuit = (): void => {
+    showOverlay(`
+      <div style="display:flex; flex-direction:column; align-items:center; gap:14px; min-width:360px; padding:24px; background:linear-gradient(180deg, var(--surface-2), var(--surface)); border:1px solid var(--line-hi); border-radius:6px; text-align:center;">
+        <h2 class="cm-display" style="margin:0; font-size:30px; color:var(--c-krieg);">Spiel beenden?</h2>
+        <span class="cm-label" style="color:var(--ink-dim);">Im Browser: einfach den Tab schließen.</span>
+        <button class="cm-btn" data-action="close">Doch weiter spielen</button>
+      </div>
+    `);
+  };
+
+  const activate = (idx: number): void => {
+    const it = items[idx];
+    if (!it) return;
+    if (it.screen === 'worldmap') {
+      resetShopPurchases();
+      resetTreasureCollections();
+      resetPerkSelections();
+      setCurrentRun(createRunState(Date.now() & 0xffffffff));
+      setActiveEncounter(null);
+    }
+    if (it.screen) {
+      ctx.go(it.screen);
+      return;
+    }
+    if (it.action === 'options') openOptions();
+    else if (it.action === 'credits') openCredits();
+    else if (it.action === 'quit') openQuit();
+  };
+
+  const updateHighlight = (): void => {
+    host.querySelectorAll<HTMLButtonElement>('button[data-menu-index]').forEach((b, i) => {
+      const it = items[i]!;
+      const sel = i === selectedIdx;
+      b.style.color = sel || it.primary ? 'var(--gold-hi)' : 'var(--ink-dim)';
+      b.style.transform = sel ? 'translateX(4px)' : 'translateX(0)';
+    });
+  };
+
+  // Interaktivität: Klick + Hover
   const buttons = host.querySelectorAll<HTMLButtonElement>('button[data-menu-index]');
   buttons.forEach((btn) => {
     const idx = Number(btn.dataset.menuIndex);
     const it = items[idx];
     if (!it) return;
     btn.addEventListener('mouseenter', () => {
-      btn.style.color = 'var(--gold-hi)';
+      selectedIdx = idx;
+      updateHighlight();
     });
-    btn.addEventListener('mouseleave', () => {
-      btn.style.color = it.primary ? 'var(--gold-hi)' : 'var(--ink-dim)';
-    });
-    btn.addEventListener('click', () => {
-      if (it.screen === 'worldmap') {
-        // SPIELEN → frischer Run mit zufälligem Seed.
-        // Per-Node-Caches (Shop-Käufe, Treasure-Drops) explizit resetten,
-        // damit ein neuer Run garantiert frisch ist — auch wenn ein vorheriger
-        // Run gleiche Node-IDs hatte.
-        resetShopPurchases();
-        resetTreasureCollections();
-        resetPerkSelections();
-        setCurrentRun(createRunState(Date.now() & 0xffffffff));
-        setActiveEncounter(null);
-      }
-      if (it.screen) ctx.go(it.screen);
-    });
+    btn.addEventListener('click', () => activate(idx));
   });
+  updateHighlight();
 
-  // Dev-Shortcut: D startet die Combat-Sandbox (nur im Vite-Dev-Build).
+  // Keyboard-Navigation
   const onKey = (e: KeyboardEvent): void => {
-    if (import.meta.env.DEV && (e.key === 'd' || e.key === 'D')) {
+    // Overlay offen → ESC schließt es, sonst keine Menü-Navigation.
+    if (overlay.style.display === 'flex') {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeOverlay();
+      }
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      selectedIdx = (selectedIdx + 1) % items.length;
+      updateHighlight();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      selectedIdx = (selectedIdx - 1 + items.length) % items.length;
+      updateHighlight();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      activate(selectedIdx);
+    } else if (import.meta.env.DEV && (e.key === 'd' || e.key === 'D')) {
+      // Dev-Shortcut: D startet die Combat-Sandbox.
       ctx.go('combat');
     }
   };

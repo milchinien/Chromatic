@@ -7,12 +7,12 @@ import { cardById } from '../src/systems/data/cards';
 
 describe('AiController', () => {
   it('bevorzugt eine Karte, die mit gespawnten Units eine Combo bildet', () => {
-    // Auf Spieler-Seite ein Skelett (Untot/Krieger) — die Wahl soll zwischen
-    // einer Combo-Option (Untot oder Krieger) und einer Nicht-Combo entscheiden.
+    // Auf Spieler-Seite ein Grabwächter (Untot/Krieger) — die Wahl soll zwischen
+    // einer Combo-Option (Untot ODER Krieger) und einer Nicht-Combo entscheiden.
     const state = createCombatState([], [], mulberry32(42));
-    UnitSystem.spawn(state, cardById('skelett'), 'player');
-    const stein = cardById('stein-magier'); // weder Untot noch Krieger
-    const beser = cardById('berserker'); // Krieger → Combo-Klasse mit Skelett
+    UnitSystem.spawn(state, cardById('grabwaechter'), 'player');
+    const stein = cardById('steinbeschwoerer'); // Stein/Magier — keine Combo mit Grabwächter
+    const beser = cardById('berserker'); // Krieger → Class-Combo mit Grabwächter
     const choice = AiController.pickBest(
       [
         { card: stein, idx: 0 },
@@ -25,9 +25,9 @@ describe('AiController', () => {
   });
 
   it('gibt nichts aus wenn keine Karte leistbar', () => {
-    const state = createCombatState([], [cardById('meteor')], mulberry32(7));
-    state.enemy.mana = 5; // Meteor kostet 15
-    state.enemy.hand = [cardById('meteor')];
+    const state = createCombatState([], [cardById('berserker')], mulberry32(7));
+    state.enemy.mana = 5; // Berserker kostet 7
+    state.enemy.hand = [cardById('berserker')];
     state.enemy.aiDecisionCooldown = 0;
     AiController.tick(state, 'enemy', 0);
     expect(state.units.length).toBe(0);
@@ -35,8 +35,8 @@ describe('AiController', () => {
   });
 
   it('spielt die teuerste leistbare Karte ohne Combo-Optionen', () => {
-    const billig = cardById('skelett'); // 4
-    const teuer = cardById('blutreiter'); // 9
+    const billig = cardById('gebetswirker'); // Farblos/Heiler 3 Mana
+    const teuer = cardById('berserker'); // Krieg/Krieger 7 Mana — anderes Color+Class als Heiler
     const state = createCombatState([], [], mulberry32(1));
     const choice = AiController.pickBest(
       [
@@ -46,6 +46,6 @@ describe('AiController', () => {
       state,
       'player',
     );
-    expect(choice.card.id).toBe('blutreiter');
+    expect(choice.card.id).toBe('berserker');
   });
 });

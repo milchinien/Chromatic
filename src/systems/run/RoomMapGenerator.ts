@@ -5,19 +5,22 @@ import { randInt } from '../rng';
 /**
  * Erzeugt eine deterministische Sub-Map für einen Welt-Knoten.
  *
- * Layout (Akt 1, 3 Sub-Knoten in 3 Layern):
- *   Layer 0: spawn
- *   Layer 1: sub_combat ODER sub_treasure (70/30) — 1 oder 2 Knoten
- *   Layer 2: exit ODER mini_boss (je nach Welt-Knoten-Typ)
+ * Layout pro Akt:
+ *   Layer 0:                spawn
+ *   Layer 1..(midLayers):   sub_combat ODER sub_treasure
+ *   Layer midLayers+1:      exit (combat_normal) ODER mini_boss (combat_hard)
  *
- * Skaliert mit Akt: `3 + (actNumber - 1)` Layer in Zwischenebene.
+ * Akt 1 hat 2 Zwischen-Layer (4 Layer total), jeder weitere Akt einen mehr.
  *
- * Reachability garantiert: jeder Layer-L+1-Knoten bekommt mind. eine Eingangs-
- * Edge, sodass der Spieler nicht stecken bleibt.
+ * **Garantien** (gegen Schein-Kampfräume):
+ * - Jeder Zwischen-Layer hat MIND. einen `sub_combat`-Knoten.
+ * - Jeder Pfad vom Spawn zum Exit passiert mindestens diesen Combat-Knoten.
+ *
+ * Reachability: jeder Layer-L+1-Knoten bekommt mind. eine Eingangs-Edge.
  */
 export const generateRoom = (worldNode: MapNode, actNumber: number, rng: Rng): RoomMap => {
-  const midLayers = Math.max(1, 1 + (actNumber - 1)); // Akt 1 = 1 Zwischenlayer (insgesamt 3 Layer)
-  const totalLayers = midLayers + 2; // +Spawn +Exit
+  const midLayers = Math.max(2, 1 + actNumber); // Akt 1 = 2 mid-Layer, Akt 2 = 3, ...
+  const totalLayers = midLayers + 2;
 
   const exitType: SubNodeType = worldNode.type === 'combat_hard' ? 'mini_boss' : 'exit';
 
@@ -26,13 +29,17 @@ export const generateRoom = (worldNode: MapNode, actNumber: number, rng: Rng): R
 
   for (let li = 0; li < totalLayers; li++) {
     const ids: string[] = [];
-    const count = li === 0 || li === totalLayers - 1 ? 1 : 1 + randInt(rng, 0, 2);
+    const isEndLayer = li === 0 || li === totalLayers - 1;
+    const count = isEndLayer ? 1 : 1 + randInt(rng, 0, 2);
+    // Index des Pflicht-Combat in diesem Mid-Layer (immer mind. einen pro Layer).
+    const forcedCombatIdx = isEndLayer ? -1 : randInt(rng, 0, count);
     for (let i = 0; i < count; i++) {
       const id = `s${li}_${i}`;
       let type: SubNodeType;
       if (li === 0) type = 'spawn';
       else if (li === totalLayers - 1) type = exitType;
-      else type = rng() < 0.7 ? 'sub_combat' : 'sub_treasure';
+      else if (i === forcedCombatIdx) type = 'sub_combat';
+      else type = rng() < 0.6 ? 'sub_combat' : 'sub_treasure';
       const x = (li + 0.5) / totalLayers;
       const yStep = 1 / (count + 1);
       const y = yStep * (i + 1);

@@ -38,8 +38,9 @@ describe('dropPool', () => {
 
 describe('shopPriceOf', () => {
   it('Preis-Formel = 50 + manaCost * 10', () => {
-    expect(shopPriceOf(cardById('skelett'))).toBe(50 + 4 * 10); // 90
-    expect(shopPriceOf(cardById('meteor'))).toBe(50 + 15 * 10); // 200
-    expect(shopPriceOf(cardById('jaeger'))).toBe(50 + 5 * 10); // 100
+    expect(shopPriceOf(cardById('gebetswirker'))).toBe(50 + 3 * 10); // 80 (Heiler)
+    expect(shopPriceOf(cardById('zeitweiser'))).toBe(50 + 4 * 10); // 90 (Magier)
+    expect(shopPriceOf(cardById('hirsch-des-waldes'))).toBe(50 + 5 * 10); // 100 (Reittier)
+    expect(shopPriceOf(cardById('berserker'))).toBe(50 + 7 * 10); // 120 (Krieger)
   });
 });

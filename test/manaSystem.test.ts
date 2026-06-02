@@ -17,6 +17,7 @@ const makeSide = (overrides: Partial<SideState> = {}): SideState => ({
   exp: 0,
   level: 1,
   aiDecisionCooldown: 0,
+  aiDecisionIntervalSec: 1.5,
   baseHpRegen: 0,
   globalDamageBonus: 0,
   ...overrides,

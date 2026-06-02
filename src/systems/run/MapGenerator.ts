@@ -20,7 +20,7 @@ const weighted =
     return entries[entries.length - 1]!.type;
   };
 
-// Akt-1-Layout aus Phase-3-Plan. Phasen 4/5/6 erweitern dieses Schema.
+// Akt-1: leicht — viele Normal-Kämpfe, ein Schwer-Kampf, Shop+Perk frühzeitig.
 const ACT_1_LAYERS: readonly LayerSpec[] = [
   { count: 1, pickType: fixed('start') },
   {
@@ -31,7 +31,7 @@ const ACT_1_LAYERS: readonly LayerSpec[] = [
     ]),
   },
   {
-    count: 2,
+    count: 3,
     pickType: weighted([
       { type: 'combat_normal', w: 2 },
       { type: 'shop', w: 1 },
@@ -49,6 +49,86 @@ const ACT_1_LAYERS: readonly LayerSpec[] = [
   { count: 1, pickType: fixed('boss') },
 ];
 
+// Akt 2: mehr Knoten pro Layer, häufiger combat_hard, weniger Treasures.
+const ACT_2_LAYERS: readonly LayerSpec[] = [
+  { count: 1, pickType: fixed('start') },
+  {
+    count: 3,
+    pickType: weighted([
+      { type: 'combat_normal', w: 3 },
+      { type: 'combat_hard', w: 1 },
+      { type: 'treasure', w: 1 },
+    ]),
+  },
+  {
+    count: 3,
+    pickType: weighted([
+      { type: 'combat_normal', w: 2 },
+      { type: 'combat_hard', w: 2 },
+      { type: 'shop', w: 1 },
+      { type: 'perk', w: 1 },
+    ]),
+  },
+  {
+    count: 3,
+    pickType: weighted([
+      { type: 'combat_hard', w: 3 },
+      { type: 'combat_normal', w: 1 },
+      { type: 'treasure', w: 1 },
+    ]),
+  },
+  { count: 1, pickType: fixed('boss') },
+];
+
+// Akt 3: kompakt aber hart — fast nur combat_hard, ein Shop.
+const ACT_3_LAYERS: readonly LayerSpec[] = [
+  { count: 1, pickType: fixed('start') },
+  {
+    count: 3,
+    pickType: weighted([
+      { type: 'combat_hard', w: 3 },
+      { type: 'combat_normal', w: 1 },
+      { type: 'perk', w: 1 },
+    ]),
+  },
+  {
+    count: 4,
+    pickType: weighted([
+      { type: 'combat_hard', w: 3 },
+      { type: 'combat_normal', w: 1 },
+      { type: 'shop', w: 1 },
+      { type: 'treasure', w: 1 },
+    ]),
+  },
+  {
+    count: 3,
+    pickType: weighted([
+      { type: 'combat_hard', w: 4 },
+      { type: 'combat_normal', w: 1 },
+    ]),
+  },
+  { count: 1, pickType: fixed('boss') },
+];
+
+const LAYERS_BY_ACT: Record<number, readonly LayerSpec[]> = {
+  1: ACT_1_LAYERS,
+  2: ACT_2_LAYERS,
+  3: ACT_3_LAYERS,
+};
+
+/** Anzahl Akte in einem kompletten Run. Sieg gegen Akt N-Boss = Game-Won. */
+export const MAX_ACTS = 3;
+
+/** Pro Akt ein Schauplatz-Name fürs WorldMap-HUD. */
+const ACT_NAMES: Record<number, string> = {
+  1: 'Verfluchter Hain',
+  2: 'Bergpass der Echos',
+  3: 'Halle des Magierats',
+};
+
+export const actName = (actNumber: number): string =>
+  ACT_NAMES[actNumber] ?? `Akt ${actNumber}`;
+
 /**
  * generateAct — deterministisch via Rng. Layered Random:
  *  - Pro Layer N Knoten (siehe LayerSpec).
@@ -56,16 +136,9 @@ const ACT_1_LAYERS: readonly LayerSpec[] = [
  *  - Reachability garantiert: jeder Layer-L+1-Knoten bekommt mindestens eine
  *    eingehende Edge (sonst „Toter Knoten").
  *  - Bossknoten ist immer der einzige Knoten im letzten Layer und erreichbar.
- *
- *  In Phase 3 zählt nur Akt 1; spätere Akte (Post-MVP) kommen mit eigenen
- *  LayerSpec-Sets.
  */
 export const generateAct = (actNumber: number, rng: Rng): ActMap => {
-  if (actNumber !== 1) {
-    // MVP: nur Akt 1. Spätere Akte recyceln Akt 1 als Fallback.
-    return generateAct(1, rng);
-  }
-  const layers = ACT_1_LAYERS;
+  const layers = LAYERS_BY_ACT[actNumber] ?? ACT_3_LAYERS;
   const nodes: MapNode[] = [];
   const layerIds: string[][] = [];
 

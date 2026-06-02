@@ -71,8 +71,8 @@ describe('MapGenerator', () => {
         },
         {
           "edges": [
-            "n2_0",
             "n2_1",
+            "n2_2",
           ],
           "id": "n1_1",
           "layer": 1,
@@ -94,6 +94,15 @@ describe('MapGenerator', () => {
           "id": "n2_1",
           "layer": 2,
           "type": "perk",
+        },
+        {
+          "edges": [
+            "n3_0",
+            "n3_1",
+          ],
+          "id": "n2_2",
+          "layer": 2,
+          "type": "combat_normal",
         },
         {
           "edges": [

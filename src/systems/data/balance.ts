@@ -5,14 +5,15 @@ export const MANA_START = 20;
 export const MANA_MAX = 20;
 export const MANA_REGEN_PER_SEC = 1;
 
-export const HAND_SIZE = 3;
-export const DRAW_INTERVAL_SEC = 4;
+export const HAND_SIZE = 4;
+export const DRAW_INTERVAL_SEC = 3;
 
 export const BASE_HP_START = 100;
 export const BASE_HP_MAX = 100;
 
-// EXP-Schwellen kumulativ — Lv 1→2 nach 5 EXP, →3 nach 15 EXP gesamt, etc.
-export const EXP_THRESHOLDS: readonly number[] = [5, 15, 30, 50, 80];
+// EXP-Schwellen kumulativ. Reichweite so gewählt, dass ein mittleres Encounter
+// (~8 Kills) maximal Lv 2-3 erreicht — Lv 4+ ist Boss-Territorium.
+export const EXP_THRESHOLDS: readonly number[] = [10, 30, 60, 100, 150];
 // EXP-Ertrag pro Kill skaliert grob mit Mana-Kosten.
 export const EXP_PER_KILL = (manaCost: number): number =>
   manaCost <= 5 ? 5 : manaCost <= 10 ? 15 : 30;
@@ -34,3 +35,10 @@ export const AI_DECISION_INTERVAL_SEC = 1.5;
 
 // Lane-Spawn-Variation, damit Units nicht 1:1 aufeinander stehen.
 export const SPAWN_LANE_JITTER = 70; // ± Pixel auf Y-Achse
+
+// Visual-FX-Timings (Phase 7 — Polish)
+export const SPAWN_FLASH_SEC = 0.25;
+export const DEATH_ANIM_SEC = 0.4;
+export const DAMAGE_NUMBER_LIFE_SEC = 0.9;
+export const SCREEN_SHAKE_DECAY_SEC = 0.3;
+export const SCREEN_SHAKE_MAX_PX = 6;

@@ -3,6 +3,7 @@ import type { Unit } from '../../domain/Unit';
 import type { Side } from '../../domain/Side';
 import type { Rng } from '../rng';
 import {
+  AI_DECISION_INTERVAL_SEC,
   BASE_HP_START,
   BASE_HP_MAX,
   DRAW_INTERVAL_SEC,
@@ -26,6 +27,9 @@ export interface SideState {
   exp: number;
   level: number;
   aiDecisionCooldown: number;
+  /** Pause zwischen zwei KI-Entscheidungen. Default = AI_DECISION_INTERVAL_SEC,
+   *  bei höheren Akten wird das verkürzt → härtere Gegner. */
+  aiDecisionIntervalSec: number;
   /** Base-HP-Heilung pro Sekunde (Perks + Level-Ups). */
   baseHpRegen: number;
   /** Pauschal-Damage-Bonus auf alle eigenen Units (Perks + Level-Ups). */
@@ -46,6 +50,21 @@ export interface EventLogEntry {
   text: string;
 }
 
+/** Floating-Damage-Number über einer getroffenen Unit oder Base. */
+export interface DamageNumber {
+  x: number;
+  y: number;
+  text: string;
+  color: string;
+  age: number;
+}
+
+/** Aktiver Screen-Shake-Impuls — wird beim Base-Hit angestoßen, klingt ab. */
+export interface ScreenShake {
+  remainingSec: number;
+  intensity: number;
+}
+
 export interface CombatState {
   tick: number;
   elapsedSec: number;
@@ -62,6 +81,14 @@ export interface CombatState {
   rng: Rng;
   log: EventLogEntry[];
   nextUnitId: number;
+  /** Visuelle Feedback-Events (Phase-7-Polish), vom Combat-Tick gefüttert
+   *  und vom Renderer abgebaut. */
+  damageNumbers: DamageNumber[];
+  screenShake: ScreenShake;
+  /** Zähler für SFX-Trigger — Renderer liest delta und feuert pro Event. */
+  spawnFxQueue: { side: Side; x: number; y: number }[];
+  deathFxQueue: { x: number; y: number }[];
+  baseHitFxQueue: { side: Side }[];
 }
 
 const initialSide = (deck: Card[]): SideState => ({
@@ -78,6 +105,7 @@ const initialSide = (deck: Card[]): SideState => ({
   exp: 0,
   level: 1,
   aiDecisionCooldown: 0,
+  aiDecisionIntervalSec: AI_DECISION_INTERVAL_SEC,
   baseHpRegen: 0,
   globalDamageBonus: 0,
 });
@@ -100,6 +128,11 @@ export const createCombatState = (
     rng,
     log: [],
     nextUnitId: 1,
+    damageNumbers: [],
+    screenShake: { remainingSec: 0, intensity: 0 },
+    spawnFxQueue: [],
+    deathFxQueue: [],
+    baseHitFxQueue: [],
   };
   // Sofortige Initial-Hand befüllen (sonst startet man mit leerer Hand).
   for (const side of [state.player, state.enemy]) {

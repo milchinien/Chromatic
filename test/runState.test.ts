@@ -33,9 +33,9 @@ describe('RunState', () => {
   it('addCardToDeck fügt Karte hinzu', () => {
     const s = createRunState(1);
     const before = s.deck.length;
-    addCardToDeck(s, cardById('meteor'));
+    addCardToDeck(s, cardById('zeitweiser'));
     expect(s.deck.length).toBe(before + 1);
-    expect(s.deck.at(-1)?.id).toBe('meteor');
+    expect(s.deck.at(-1)?.id).toBe('zeitweiser');
   });
 
   it('damageBase und healBase respektieren Grenzen', () => {
@@ -50,12 +50,13 @@ describe('RunState', () => {
     expect(s.baseHp).toBe(s.maxBaseHp);
   });
 
-  it('setCurrentNode markiert besucht', () => {
+  it('setCurrentNode setzt currentNodeId — markiert aber NICHT als besucht', () => {
     const s = createRunState(1);
     const next = reachableFromCurrent(s)[0];
     expect(next).toBeDefined();
     setCurrentNode(s, next!);
     expect(s.currentNodeId).toBe(next);
-    expect(s.visitedNodes.has(next!)).toBe(true);
+    // Besucht-Marker wird explizit vom Abschluss-Hook gesetzt, nicht beim Betreten.
+    expect(s.visitedNodes.has(next!)).toBe(false);
   });
 });

@@ -3,13 +3,22 @@ import type { RunState } from '../../domain/Run';
 import type { SideState } from '../combat/CombatState';
 
 // Reine Daten-Definition für die 6 MVP-Perks aus GAME_DESIGN Sektion 4.2.
-// Die `apply`-Funktion lebt hier (nicht im Perk-Interface), weil Function-Pointer
-// schlecht in `domain/`-Typen passen (Phaser-frei, ggf. Serialisierung später).
+//
+// Zwei Hooks pro Perk, um Double-Apply-Bug zu vermeiden:
+//  - onChoose(run): einmalig im PerkSelect-Screen, modifiziert RunState
+//    permanent. Idempotent darf NICHT sein — wird genau einmal aufgerufen.
+//  - onCombatMount(side): jedes Mal beim Combat-Mount aufgerufen, modifiziert
+//    den frischen SideState (der eh bei jedem Mount neu erstellt wird).
+//
+// Trennung verhindert, dass Felder wie run.maxBaseHp bei jedem Combat erneut
+// um +20 wachsen — das wäre ein klassischer "Buff stacks ad infinitum"-Bug.
 
-export type PerkApply = (sideState: SideState, runState: RunState) => void;
+export type OnChoose = (run: RunState) => void;
+export type OnCombatMount = (side: SideState) => void;
 
 interface PerkDef extends Perk {
-  readonly apply: PerkApply;
+  readonly onChoose?: OnChoose;
+  readonly onCombatMount?: OnCombatMount;
 }
 
 export const PERKS: readonly PerkDef[] = [
@@ -19,7 +28,7 @@ export const PERKS: readonly PerkDef[] = [
     description: 'Mana regeneriert doppelt so schnell.',
     glyph: '⟳',
     color: 'var(--mana)',
-    apply: (side) => {
+    onCombatMount: (side) => {
       side.manaRegen *= 2;
     },
   },
@@ -29,7 +38,7 @@ export const PERKS: readonly PerkDef[] = [
     description: 'Maximales Mana um 20 erhöht.',
     glyph: '◉',
     color: 'var(--mana)',
-    apply: (side) => {
+    onCombatMount: (side) => {
       side.maxMana += 20;
       side.mana = Math.min(side.maxMana, side.mana + 20);
     },
@@ -40,12 +49,13 @@ export const PERKS: readonly PerkDef[] = [
     description: 'Basis-HP um 20 erhöht — heilt auch um 20.',
     glyph: '♥',
     color: 'var(--c-natur)',
-    apply: (side, run) => {
-      side.maxBaseHp += 20;
-      side.baseHp += 20;
+    onChoose: (run) => {
+      // Permanent: Run-State-Maximum + aktuelle HP.
       run.maxBaseHp += 20;
-      run.baseHp += 20;
+      run.baseHp = Math.min(run.maxBaseHp, run.baseHp + 20);
     },
+    // Kein onCombatMount — Combat liest beim Mount run.maxBaseHp/baseHp und
+    // sieht den Buff bereits dort. Side wird daraus initialisiert.
   },
   {
     id: 'hp_regen_plus_1',
@@ -53,7 +63,7 @@ export const PERKS: readonly PerkDef[] = [
     description: 'Base-HP regeneriert +1 pro Sekunde.',
     glyph: '✚',
     color: 'var(--c-natur)',
-    apply: (side) => {
+    onCombatMount: (side) => {
       side.baseHpRegen += 1;
     },
   },
@@ -63,7 +73,7 @@ export const PERKS: readonly PerkDef[] = [
     description: 'Alle befreundeten Units +5 Damage.',
     glyph: '⚔',
     color: 'var(--c-krieg)',
-    apply: (side) => {
+    onCombatMount: (side) => {
       side.globalDamageBonus += 5;
     },
   },
@@ -73,7 +83,7 @@ export const PERKS: readonly PerkDef[] = [
     description: '+1 Karte in der Hand.',
     glyph: '✦',
     color: 'var(--gold-hi)',
-    apply: (side) => {
+    onCombatMount: (side) => {
       side.handSize += 1;
     },
   },
@@ -85,7 +95,13 @@ export const perkById = (id: string): PerkDef => {
   return p;
 };
 
-export const applyPerk = (perk: Perk, side: SideState, run: RunState): void => {
-  const def = perkById(perk.id);
-  def.apply(side, run);
+/** Beim Wählen eines Perks (PerkSelect-Confirm) aufgerufen — modifiziert
+ *  RunState permanent. Wird genau einmal pro Wahl ausgeführt. */
+export const applyPerkOnChoose = (perk: Perk, run: RunState): void => {
+  perkById(perk.id).onChoose?.(run);
+};
+
+/** Beim Combat-Mount aufgerufen — modifiziert den frischen SideState. */
+export const applyPerkOnCombatMount = (perk: Perk, side: SideState): void => {
+  perkById(perk.id).onCombatMount?.(side);
 };

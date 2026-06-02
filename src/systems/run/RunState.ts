@@ -3,7 +3,7 @@ import type { RunState, ActMap, RoomMap } from '../../domain/Run';
 import { BASE_HP_MAX, BASE_HP_START } from '../data/balance';
 import { starterDeck } from '../data/starterDeck';
 import { mulberry32 } from '../rng';
-import { generateAct } from './MapGenerator';
+import { generateAct, MAX_ACTS } from './MapGenerator';
 
 export const STARTING_COINS = 550;
 
@@ -43,9 +43,12 @@ export const markNodeVisited = (state: RunState, nodeId: string): void => {
   state.visitedNodes.add(nodeId);
 };
 
+/** Setzt den aktuellen Welt-Knoten. **Markiert NICHT** als besucht — das passiert
+ *  erst nach Abschluss der Aktion (Shop-Verlassen, Treasure-Weiter, Perk-Confirm,
+ *  RoomMap-Exit-Klick, Boss-/Mini-Boss-Sieg). So zeigt kein Knoten ein ✓, den
+ *  der Spieler nur betreten aber nicht durchlaufen hat. */
 export const setCurrentNode = (state: RunState, nodeId: string): void => {
   state.currentNodeId = nodeId;
-  state.visitedNodes.add(nodeId);
 };
 
 export const damageBase = (state: RunState, amount: number): void => {
@@ -57,6 +60,23 @@ export const healBase = (state: RunState, amount: number): void => {
 };
 
 export const isRunOver = (state: RunState): boolean => state.baseHp <= 0;
+
+export const isFinalAct = (state: RunState): boolean => state.actNumber >= MAX_ACTS;
+
+/** Nach Boss-Sieg in nicht-letztem Akt: neuen Akt generieren, Caches resetten.
+ *  Deck, Coins, Perks, Base-HP bleiben — sie sind dauerhafte Progression. */
+export const advanceToNextAct = (state: RunState): void => {
+  if (isFinalAct(state)) return;
+  state.actNumber += 1;
+  const rng = mulberry32(state.seed ^ (state.actNumber * 0x9e3779b1));
+  state.map = generateAct(state.actNumber, rng);
+  state.currentNodeId = state.map.startNodeId;
+  state.visitedNodes = new Set([state.map.startNodeId]);
+  state.roomMaps = new Map();
+  state.activeWorldNodeId = null;
+  state.currentRoomNodeId = null;
+  state.visitedRoomNodes = new Map();
+};
 
 export const reachableFromCurrent = (state: RunState): string[] => {
   const node = state.map.nodes.find((n) => n.id === state.currentNodeId);

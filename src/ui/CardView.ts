@@ -1,5 +1,12 @@
-import type { Card } from '../domain/Card';
-import { colorToCss } from '../systems/data/designTokens';
+import type { Card, CardClass, Color } from '../domain/Card';
+
+// 25 einzelne Karten-Bilder aus design/project/cards (per Klasse × Farbe).
+// Vite-Glob lädt alle als URLs ein und bundelt sie über den Build-Pipeline.
+const cardImages = import.meta.glob('../assets/cards/card-r*-c*.png', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
 
 export interface CardViewOptions {
   card: Card;
@@ -8,108 +15,81 @@ export interface CardViewOptions {
   size?: 'sm' | 'md';
 }
 
-const classIcon = (cls: Card['class']): string => {
-  switch (cls) {
-    case 'krieger':
-      return '⚔';
-    case 'festung':
-      return '🛡';
-    case 'reittier':
-      return '🐎';
-    case 'magier':
-      return '✦';
-    case 'heiler':
-      return '✚';
-  }
+// Klassen-Reihe in den Datei-Namen: r1 = Krieger (Mana 7) ... r5 = Heiler (Mana 3).
+const CLASS_ROW: Record<CardClass, number> = {
+  krieger: 1,
+  festung: 2,
+  reittier: 3,
+  magier: 4,
+  heiler: 5,
 };
 
-const COLOR_LABEL: Record<Card['color'], string> = {
-  natur: 'NATUR',
-  krieg: 'KRIEG',
-  stein: 'STEIN',
-  untot: 'UNTOT',
-  farblos: 'FARBLOS',
+// Farb-Spalte: c1 = Krieg ... c5 = Farblos.
+const COLOR_COL: Record<Color, number> = {
+  krieg: 1,
+  natur: 2,
+  stein: 3,
+  untot: 4,
+  farblos: 5,
 };
 
-const CLASS_LABEL: Record<Card['class'], string> = {
-  krieger: 'KRIEGER',
-  festung: 'FESTUNG',
-  reittier: 'REITTIER',
-  magier: 'MAGIER',
-  heiler: 'HEILER',
+const cardImageUrl = (card: Card): string | undefined => {
+  const row = CLASS_ROW[card.class];
+  const col = COLOR_COL[card.color];
+  const key = `../assets/cards/card-r${row}-c${col}.png`;
+  return cardImages[key];
 };
 
+/**
+ * Karten-Ansicht.
+ *
+ * Jede Karte wird als eigene PNG-Datei aus src/assets/cards/ geladen
+ * (Quelle: design/project/cards/card-r{class}-c{color}.png). Vite bundelt
+ * die 25 Bilder im Build. Statische Karten-Inhalte (Mana, Name, Stats, Tags)
+ * sind im jeweiligen PNG enthalten — die Daten in cards.ts spiegeln dieselben
+ * Werte, damit Combat-Logik konsistent bleibt.
+ */
 export const renderCardView = (opts: CardViewOptions): HTMLElement => {
   const { card, affordable, size = 'md' } = opts;
-  const dims = size === 'md' ? { w: 150, h: 218, pad: 10, art: 88 } : { w: 110, h: 160, pad: 8, art: 60 };
-  const color = colorToCss(card.color);
+  // Aspect-Ratio matched die Quell-PNGs (174×304 ≈ 0.572 w/h), damit `cover`
+  // weder Top (Mana/Name) noch Bottom (Farb-/Klassen-Tag) abschneidet.
+  const dims = size === 'md' ? { w: 150, h: 262 } : { w: 110, h: 192 };
+
+  const url = cardImageUrl(card);
 
   const el = document.createElement('button');
   el.className = `cm-card cm-card-view${affordable ? '' : ' cm-card-view--locked'}`;
   el.dataset.cardId = card.id;
+  el.setAttribute('aria-label', `${card.name} · ${card.manaCost} Mana`);
   el.style.cssText = `
     position: relative;
     width: ${dims.w}px;
     height: ${dims.h}px;
-    padding: ${dims.pad}px;
-    text-align: left;
+    padding: 0;
+    border: 0;
+    background: ${url ? `url(${url}) center/cover no-repeat` : 'var(--surface)'};
+    border-radius: 6px;
     cursor: ${affordable ? 'pointer' : 'not-allowed'};
-    opacity: ${affordable ? '1' : '0.55'};
-    color: var(--ink);
-    display: flex; flex-direction: column; gap: 6px;
-  `;
-
-  el.innerHTML = `
-    <div style="
-      position: absolute; top: -8px; left: -8px;
-      width: 28px; height: 28px; border-radius: 50%;
-      background: radial-gradient(circle at 35% 30%, #6ab1e8, #2a5a8c);
-      border: 2px solid #163050;
-      display: flex; align-items: center; justify-content: center;
-      color: white; font: 600 13px 'JetBrains Mono', monospace;
-      box-shadow: 0 0 12px rgba(74,140,200,.6);
-    ">${card.manaCost}</div>
-
-    <div style="display:flex; align-items:center; justify-content:space-between; height:14px;">
-      <div style="display:flex; align-items:center; gap:6px;">
-        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${color}; box-shadow:0 0 6px ${color}aa;"></span>
-        <span style="font: 400 9px 'JetBrains Mono', monospace; letter-spacing:0.2em; color:var(--ink-mute);">${COLOR_LABEL[card.color]}</span>
-      </div>
-      <span style="color:${color}; font-size:14px;">${classIcon(card.class)}</span>
-    </div>
-
-    <div style="
-      height: ${dims.art}px; border-radius: 2px;
-      background:
-        repeating-linear-gradient(45deg, ${color}33 0 6px, transparent 6px 12px),
-        radial-gradient(circle at 50% 40%, ${color}55, transparent 70%),
-        #1f180f;
-      position: relative; display:flex; align-items:center; justify-content:center;
-      border: 1px solid var(--line);
-    ">
-      <span style="font-size:${Math.round(dims.art * 0.55)}px; color:${color}; opacity:0.95; text-shadow:0 0 16px ${color};">${classIcon(card.class)}</span>
-    </div>
-
-    <div style="font-family:'Cinzel', serif; font-size:13px; letter-spacing:0.06em; text-align:center;">${card.name}</div>
-
-    <div style="
-      margin-top:auto; display:flex; justify-content:space-between; align-items:center;
-      background:var(--bg-2); border:1px solid var(--line-soft); border-radius:2px;
-      padding: 4px 8px; font-family:'JetBrains Mono', monospace; font-size:12px;
-    ">
-      <span style="color:var(--c-krieg);">⚔ ${card.stats.damage}</span>
-      <span style="color:var(--c-natur);">♥ ${card.stats.hp}</span>
-    </div>
-
-    <div style="text-align:center; font-family:'JetBrains Mono', monospace; font-size:9px; letter-spacing:0.22em; color:var(--ink-mute);">
-      ${CLASS_LABEL[card.class]}
-    </div>
+    opacity: ${affordable ? '1' : '0.5'};
+    filter: ${affordable ? 'none' : 'grayscale(0.5)'};
+    transition: transform 120ms, filter 120ms, box-shadow 120ms;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.55);
   `;
 
   if (opts.onClick && affordable) {
     el.addEventListener('click', (e) => {
       e.preventDefault();
       opts.onClick!();
+    });
+    el.addEventListener('mouseenter', () => {
+      el.style.transform = 'translateY(-3px)';
+      el.style.filter = 'brightness(1.1)';
+      el.style.boxShadow = '0 8px 18px rgba(0,0,0,0.65), 0 0 12px rgba(214,169,85,0.35)';
+    });
+    el.addEventListener('mouseleave', () => {
+      el.style.transform = 'translateY(0)';
+      el.style.filter = 'none';
+      el.style.boxShadow = '0 4px 8px rgba(0,0,0,0.55)';
     });
   }
   return el;
