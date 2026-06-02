@@ -5,8 +5,8 @@ export const MANA_START = 20;
 export const MANA_MAX = 20;
 export const MANA_REGEN_PER_SEC = 1;
 
-export const HAND_SIZE = 4;
-export const DRAW_INTERVAL_SEC = 3;
+export const HAND_SIZE = 3;
+export const DRAW_INTERVAL_SEC = 4;
 
 export const BASE_HP_START = 100;
 export const BASE_HP_MAX = 100;
