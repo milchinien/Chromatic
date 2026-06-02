@@ -24,37 +24,41 @@ export interface SubTileState {
 
 export const renderSubTile = (state: SubTileState, onClick?: () => void): HTMLElement => {
   const meta = META[state.type];
-  const imgUrl = subButtonUrl(state.type, (clean) => {
+  const isActive = state.reachable || state.current;
+  const imgUrl = subButtonUrl(state.type, isActive, (clean) => {
     const img = tile.querySelector('img');
-    if (img && img.src !== clean) img.src = clean;
+    if (!img) return;
+    if (img.src !== clean) img.src = clean;
+    img.style.opacity = '1';
   });
+  const imgIsClean = imgUrl?.startsWith('data:') === true;
   const tile = document.createElement('button');
   tile.type = 'button';
   tile.dataset.subType = state.type;
   const enabled = state.reachable && !state.current;
-  const glow = 'none';
-  const visitedDim = state.visited && !state.current;
+  const baseScale = isActive ? 1 : 0.82;
   tile.style.cssText = `
     position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px;
     width: ${meta.size}px; height: ${meta.size + 22}px;
     background: transparent; border: none; padding: 0;
     cursor: ${enabled ? 'pointer' : 'default'};
-    opacity: ${visitedDim ? 0.55 : state.reachable || state.current ? 1 : 0.75};
+    opacity: 1;
   `;
 
   tile.innerHTML = `
     <div style="
       position: relative; width: ${meta.size}px; height: ${meta.size}px;
       display: flex; align-items: center; justify-content: center;
-      transition: transform 120ms, filter 120ms;
-      filter: ${glow};
+      transition: transform 120ms;
+      transform: scale(${baseScale});
     ">
       ${
         imgUrl
           ? `<img src="${imgUrl}" alt="${meta.label}" style="
               width: 100%; height: 100%; object-fit: contain;
               pointer-events: none;
-              ${visitedDim ? 'filter: grayscale(0.6) brightness(0.85);' : ''}
+              opacity: ${imgIsClean ? 1 : 0};
+              transition: opacity 120ms ease-out;
             "/>`
           : `<div style="
               width:100%; height:100%; border-radius:50%;
@@ -76,11 +80,11 @@ export const renderSubTile = (state: SubTileState, onClick?: () => void): HTMLEl
     tile.addEventListener('click', onClick);
     tile.addEventListener('mouseenter', () => {
       const ring = tile.firstElementChild as HTMLElement | null;
-      if (ring) ring.style.transform = 'scale(1.08)';
+      if (ring) ring.style.transform = `scale(${baseScale * 1.08})`;
     });
     tile.addEventListener('mouseleave', () => {
       const ring = tile.firstElementChild as HTMLElement | null;
-      if (ring) ring.style.transform = 'scale(1)';
+      if (ring) ring.style.transform = `scale(${baseScale})`;
     });
   }
   return tile;
