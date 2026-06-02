@@ -1,4 +1,4 @@
-import type { Card, CardClass, Color } from '../../domain/Card';
+import type { Card, CardClass, PassiveEffect, UnitStats } from '../../domain/Card';
 
 // =====================================================================
 // 25 Karten — 5 Farben × 5 Klassen, exakt nach User-Anhang.
@@ -6,32 +6,138 @@ import type { Card, CardClass, Color } from '../../domain/Card';
 // Sichtbare Felder (Name, Mana, DMG, HP, Farbe, Klasse) sind 1:1 aus dem
 // Anhang übernommen — KEINE Änderungen.
 //
-// Nicht-sichtbare Felder (Speed, Angriffstakt, Combo-Buffs) sind Code-
-// Defaults pro Klasse/Farbe, damit das Combat-System läuft. Sie können
-// in einer späteren Balance-Iteration zentral hier nachjustiert werden.
+// Combo-Buffs (colorBuff / classBuff) und Passives stehen gemäß GAME_DESIGN
+// §6.4 (Punkt 5 + 6) PRO KARTE fest — es gibt KEINE globalen Default-Tabellen
+// mehr. attackInterval & speed bleiben Klassen-Defaults (reine Stat-Filler,
+// nicht sichtbar im Anhang).
 // =====================================================================
 
-interface ClassDefaults {
+interface ClassStatDefaults {
   readonly attackInterval: number; // Sek. zwischen Angriffen
   readonly speed: number; // Pixel/Sek. auf dem Spielfeld
-  readonly classBuff: Card['classBuff'];
 }
 
-const CLASS_DEFAULTS: Record<CardClass, ClassDefaults> = {
-  krieger: { attackInterval: 1.0, speed: 50, classBuff: { damage: 3 } },
-  festung: { attackInterval: 1.6, speed: 28, classBuff: { hp: 5 } },
-  reittier: { attackInterval: 0.9, speed: 75, classBuff: { speed: 12 } },
-  magier: { attackInterval: 1.3, speed: 38, classBuff: { damage: 2 } },
-  heiler: { attackInterval: 1.4, speed: 45, classBuff: { hp: 3 } },
+const CLASS_STAT_DEFAULTS: Record<CardClass, ClassStatDefaults> = {
+  krieger: { attackInterval: 1.0, speed: 50 },
+  festung: { attackInterval: 1.6, speed: 28 },
+  reittier: { attackInterval: 0.9, speed: 75 },
+  magier: { attackInterval: 1.3, speed: 38 },
+  heiler: { attackInterval: 1.4, speed: 45 },
 };
 
-const COLOR_BUFF: Record<Color, Card['colorBuff']> = {
-  krieg: { damage: 2 },
-  natur: { hp: 3 },
-  stein: { hp: 4 },
-  untot: { damage: 2 },
-  // Farblos hat per GAME_DESIGN keinen Color-Buff (löst nicht aus, empfängt keinen).
-  farblos: {},
+// --- Passive-Fabriken (GAME_DESIGN §6.4 Punkt 5) -------------------------
+// Alle Effekte modifizieren currentHp / baseStats / pendingSpawns — NIE u.buffs,
+// damit sie nicht von der Combo-Aura-Recompute (die buffs={} setzt) überschrieben
+// werden oder sich über Ticks aufaddieren.
+
+const dist = (ax: number, ay: number, bx: number, by: number): number =>
+  Math.hypot(ax - bx, ay - by);
+
+/** Heiler: heilt befreundete Units (inkl. sich selbst) im Radius pro Sekunde. */
+const healAura = (radius: number, perSec: number): PassiveEffect => ({
+  trigger: 'onTick',
+  apply: (self, state, dt) => {
+    for (const o of state.units) {
+      if (!o.alive || o.side !== self.side) continue;
+      if (dist(self.x, self.y, o.x, o.y) <= radius) {
+        o.currentHp = Math.min(o.baseStats.hp, o.currentHp + perSec * dt);
+      }
+    }
+  },
+});
+
+/** Magier: AoE — schadet gegnerischen Units im Radius pro Sekunde. */
+const damageAura = (radius: number, perSec: number): PassiveEffect => ({
+  trigger: 'onTick',
+  apply: (self, state, dt) => {
+    for (const o of state.units) {
+      if (!o.alive || o.side === self.side) continue;
+      if (dist(self.x, self.y, o.x, o.y) <= radius) {
+        o.currentHp -= perSec * dt;
+      }
+    }
+  },
+});
+
+/** Festung: repariert die eigene HP langsam (Bollwerk). */
+const selfRepair = (perSec: number): PassiveEffect => ({
+  trigger: 'onTick',
+  apply: (self, _state, dt) => {
+    self.currentHp = Math.min(self.baseStats.hp, self.currentHp + perSec * dt);
+  },
+});
+
+/** Krieger: unter 50 % HP steigt der Grund-Damage dauerhaft (Berserker-Wut). */
+const rageOnLowHp = (mult: number): PassiveEffect => ({
+  trigger: 'onHpThreshold',
+  hpThreshold: 0.5,
+  apply: (self) => {
+    self.baseStats.damage = Math.round(self.baseStats.damage * mult);
+  },
+});
+
+/** Reittier: unter 50 % HP beschleunigt die Unit (Panik-Galopp / Evasion). */
+const sprintOnLowHp = (bonus: number): PassiveEffect => ({
+  trigger: 'onHpThreshold',
+  hpThreshold: 0.5,
+  apply: (self) => {
+    self.baseStats.speed += bonus;
+  },
+});
+
+/** Nekromant: beim Tod erhebt sich ein Skelett am Sterbeort (Dark Magic). */
+const raiseSkeletonOnDeath: PassiveEffect = {
+  trigger: 'onDeath',
+  apply: (self, state) => {
+    state.pendingSpawns.push({ card: SKELETT, side: self.side, x: self.x, y: self.y });
+  },
+};
+
+// --- Per-Karte: Combo-Buffs + Passive (§6.4 Punkt 5 + 6) ----------------
+// Farb-Identität: krieg/untot → Damage-Buff, natur/stein → HP-Buff, farblos → kein
+// Color-Buff (§6.5). Magnitude variiert pro Karte → echte kartenspezifische Werte.
+
+interface CardSpec {
+  readonly colorBuff: Partial<UnitStats>;
+  readonly classBuff: Partial<UnitStats>;
+  readonly passive: PassiveEffect;
+}
+
+const CARD_SPECS: Record<string, CardSpec> = {
+  // Krieger — Class-Buff: Damage · Passive: Berserker-Wut
+  berserker: { colorBuff: { damage: 5 }, classBuff: { damage: 5 }, passive: rageOnLowHp(1.5) },
+  waldlaeufer: { colorBuff: { hp: 5 }, classBuff: { damage: 4 }, passive: rageOnLowHp(1.5) },
+  steinbrecher: { colorBuff: { hp: 6 }, classBuff: { damage: 4 }, passive: rageOnLowHp(1.5) },
+  grabwaechter: { colorBuff: { damage: 4 }, classBuff: { damage: 4 }, passive: rageOnLowHp(1.5) },
+  soeldner: { colorBuff: {}, classBuff: { damage: 4 }, passive: rageOnLowHp(1.5) },
+
+  // Festung — Class-Buff: HP · Passive: Selbst-Reparatur
+  kriegsfeste: { colorBuff: { damage: 4 }, classBuff: { hp: 8 }, passive: selfRepair(2.5) },
+  wurzelbastion: { colorBuff: { hp: 8 }, classBuff: { hp: 8 }, passive: selfRepair(2.5) },
+  steinfestung: { colorBuff: { hp: 10 }, classBuff: { hp: 10 }, passive: selfRepair(3) },
+  totenzitadelle: { colorBuff: { damage: 3 }, classBuff: { hp: 8 }, passive: selfRepair(2.5) },
+  handelsposten: { colorBuff: {}, classBuff: { hp: 8 }, passive: selfRepair(2.5) },
+
+  // Reittier — Class-Buff: Speed · Passive: Panik-Galopp
+  kriegspferd: { colorBuff: { damage: 4 }, classBuff: { speed: 14 }, passive: sprintOnLowHp(25) },
+  'hirsch-des-waldes': { colorBuff: { hp: 5 }, classBuff: { speed: 14 }, passive: sprintOnLowHp(25) },
+  steinwolf: { colorBuff: { hp: 6 }, classBuff: { speed: 12 }, passive: sprintOnLowHp(25) },
+  knochenross: { colorBuff: { damage: 4 }, classBuff: { speed: 14 }, passive: sprintOnLowHp(25) },
+  wanderkamel: { colorBuff: {}, classBuff: { speed: 14 }, passive: sprintOnLowHp(25) },
+
+  // Magier — Class-Buff: Damage · Passive: AoE-Aura (Nekromant: onDeath-Skelett)
+  feuermagier: { colorBuff: { damage: 4 }, classBuff: { damage: 3 }, passive: damageAura(70, 4) },
+  waldweiser: { colorBuff: { hp: 5 }, classBuff: { damage: 3 }, passive: damageAura(70, 4) },
+  steinbeschwoerer: { colorBuff: { hp: 6 }, classBuff: { damage: 3 }, passive: damageAura(70, 4) },
+  nekromant: { colorBuff: { damage: 5 }, classBuff: { damage: 3 }, passive: raiseSkeletonOnDeath },
+  zeitweiser: { colorBuff: {}, classBuff: { damage: 3 }, passive: damageAura(70, 4) },
+
+  // Heiler — Class-Buff: HP · Passive: Heil-Aura
+  kriegssanitaeter: { colorBuff: { damage: 3 }, classBuff: { hp: 5 }, passive: healAura(90, 3) },
+  naturheiler: { colorBuff: { hp: 6 }, classBuff: { hp: 5 }, passive: healAura(90, 3) },
+  steinhueter: { colorBuff: { hp: 7 }, classBuff: { hp: 5 }, passive: healAura(90, 3) },
+  seelenheiler: { colorBuff: { damage: 3 }, classBuff: { hp: 5 }, passive: healAura(90, 3) },
+  gebetswirker: { colorBuff: {}, classBuff: { hp: 5 }, passive: healAura(90, 3) },
 };
 
 interface RowSpec {
@@ -41,25 +147,21 @@ interface RowSpec {
   readonly hp: number;
 }
 
-interface ColSpec {
-  readonly color: Color;
-  readonly suffix: string; // Color-spezifischer Name-Slot pro Klassen-Zeile
-  readonly id: string;
-}
-
 // Eine Zeile = eine Klasse mit gleicher Mana/DMG/HP über alle 5 Farben.
-const ROWS: ReadonlyArray<RowSpec & { readonly names: readonly { id: string; name: string }[] }> = [
+const ROWS: ReadonlyArray<
+  RowSpec & { readonly names: readonly { id: string; name: string; color: Card['color'] }[] }
+> = [
   {
     cls: 'krieger',
     manaCost: 7,
     damage: 15,
     hp: 8,
     names: [
-      { id: 'berserker', name: 'Berserker' },
-      { id: 'waldlaeufer', name: 'Waldläufer' },
-      { id: 'steinbrecher', name: 'Steinbrecher' },
-      { id: 'grabwaechter', name: 'Grabwächter' },
-      { id: 'soeldner', name: 'Söldner' },
+      { id: 'berserker', name: 'Berserker', color: 'krieg' },
+      { id: 'waldlaeufer', name: 'Waldläufer', color: 'natur' },
+      { id: 'steinbrecher', name: 'Steinbrecher', color: 'stein' },
+      { id: 'grabwaechter', name: 'Grabwächter', color: 'untot' },
+      { id: 'soeldner', name: 'Söldner', color: 'farblos' },
     ],
   },
   {
@@ -68,11 +170,11 @@ const ROWS: ReadonlyArray<RowSpec & { readonly names: readonly { id: string; nam
     damage: 20,
     hp: 25,
     names: [
-      { id: 'kriegsfeste', name: 'Kriegsfeste' },
-      { id: 'wurzelbastion', name: 'Wurzelbastion' },
-      { id: 'steinfestung', name: 'Steinfestung' },
-      { id: 'totenzitadelle', name: 'Totenzitadelle' },
-      { id: 'handelsposten', name: 'Handelsposten' },
+      { id: 'kriegsfeste', name: 'Kriegsfeste', color: 'krieg' },
+      { id: 'wurzelbastion', name: 'Wurzelbastion', color: 'natur' },
+      { id: 'steinfestung', name: 'Steinfestung', color: 'stein' },
+      { id: 'totenzitadelle', name: 'Totenzitadelle', color: 'untot' },
+      { id: 'handelsposten', name: 'Handelsposten', color: 'farblos' },
     ],
   },
   {
@@ -81,11 +183,11 @@ const ROWS: ReadonlyArray<RowSpec & { readonly names: readonly { id: string; nam
     damage: 12,
     hp: 10,
     names: [
-      { id: 'kriegspferd', name: 'Kriegspferd' },
-      { id: 'hirsch-des-waldes', name: 'Hirsch des Waldes' },
-      { id: 'steinwolf', name: 'Steinwolf' },
-      { id: 'knochenross', name: 'Knochenross' },
-      { id: 'wanderkamel', name: 'Wanderkamel' },
+      { id: 'kriegspferd', name: 'Kriegspferd', color: 'krieg' },
+      { id: 'hirsch-des-waldes', name: 'Hirsch des Waldes', color: 'natur' },
+      { id: 'steinwolf', name: 'Steinwolf', color: 'stein' },
+      { id: 'knochenross', name: 'Knochenross', color: 'untot' },
+      { id: 'wanderkamel', name: 'Wanderkamel', color: 'farblos' },
     ],
   },
   {
@@ -94,11 +196,11 @@ const ROWS: ReadonlyArray<RowSpec & { readonly names: readonly { id: string; nam
     damage: 10,
     hp: 6,
     names: [
-      { id: 'feuermagier', name: 'Feuermagier' },
-      { id: 'waldweiser', name: 'Waldweiser' },
-      { id: 'steinbeschwoerer', name: 'Steinbeschwörer' },
-      { id: 'nekromant', name: 'Nekromant' },
-      { id: 'zeitweiser', name: 'Zeitweiser' },
+      { id: 'feuermagier', name: 'Feuermagier', color: 'krieg' },
+      { id: 'waldweiser', name: 'Waldweiser', color: 'natur' },
+      { id: 'steinbeschwoerer', name: 'Steinbeschwörer', color: 'stein' },
+      { id: 'nekromant', name: 'Nekromant', color: 'untot' },
+      { id: 'zeitweiser', name: 'Zeitweiser', color: 'farblos' },
     ],
   },
   {
@@ -107,33 +209,26 @@ const ROWS: ReadonlyArray<RowSpec & { readonly names: readonly { id: string; nam
     damage: 8,
     hp: 12,
     names: [
-      { id: 'kriegssanitaeter', name: 'Kriegssanitäter' },
-      { id: 'naturheiler', name: 'Naturheiler' },
-      { id: 'steinhueter', name: 'Steinhüter' },
-      { id: 'seelenheiler', name: 'Seelenheiler' },
-      { id: 'gebetswirker', name: 'Gebetswirker' },
+      { id: 'kriegssanitaeter', name: 'Kriegssanitäter', color: 'krieg' },
+      { id: 'naturheiler', name: 'Naturheiler', color: 'natur' },
+      { id: 'steinhueter', name: 'Steinhüter', color: 'stein' },
+      { id: 'seelenheiler', name: 'Seelenheiler', color: 'untot' },
+      { id: 'gebetswirker', name: 'Gebetswirker', color: 'farblos' },
     ],
   },
-];
-
-const COLORS: readonly ColSpec[] = [
-  { color: 'krieg', suffix: 'Krieg', id: 'krieg' },
-  { color: 'natur', suffix: 'Natur', id: 'natur' },
-  { color: 'stein', suffix: 'Stein', id: 'stein' },
-  { color: 'untot', suffix: 'Untot', id: 'untot' },
-  { color: 'farblos', suffix: 'Farblos', id: 'farblos' },
 ];
 
 const buildCards = (): Card[] => {
   const out: Card[] = [];
   for (const row of ROWS) {
-    const cd = CLASS_DEFAULTS[row.cls];
-    row.names.forEach((entry, colIdx) => {
-      const color = COLORS[colIdx]!.color;
+    const cd = CLASS_STAT_DEFAULTS[row.cls];
+    for (const entry of row.names) {
+      const spec = CARD_SPECS[entry.id];
+      if (!spec) throw new Error(`Missing CardSpec for ${entry.id}`);
       out.push({
         id: entry.id,
         name: entry.name,
-        color,
+        color: entry.color,
         class: row.cls,
         manaCost: row.manaCost,
         stats: {
@@ -142,13 +237,28 @@ const buildCards = (): Card[] => {
           hp: row.hp,
           speed: cd.speed,
         },
-        colorBuff: { ...COLOR_BUFF[color] },
-        classBuff: { ...cd.classBuff },
+        colorBuff: { ...spec.colorBuff },
+        classBuff: { ...spec.classBuff },
+        passive: spec.passive,
         rarity: 'common',
       });
-    });
+    }
   }
   return out;
+};
+
+// Beschwörbares Skelett des Nekromanten — NICHT im Deck/Pool, nur via onDeath.
+// Schwach, ohne eigene Combo-Buffs/Passive (verhindert Beschwörungs-Ketten).
+const SKELETT: Card = {
+  id: 'skelett',
+  name: 'Skelett',
+  color: 'untot',
+  class: 'krieger',
+  manaCost: 0,
+  stats: { damage: 5, attackInterval: 1.1, hp: 6, speed: 55 },
+  colorBuff: {},
+  classBuff: {},
+  rarity: 'common',
 };
 
 export const ALL_CARDS: readonly Card[] = Object.freeze(buildCards());
