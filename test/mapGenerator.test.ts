@@ -48,6 +48,17 @@ describe('MapGenerator', () => {
     expect(visited.has(map.bossNodeId)).toBe(true);
   });
 
+  it('enthält pro Akt mind. einen Shop, Schatz und Perk (über viele Seeds)', () => {
+    for (let act = 1; act <= 3; act++) {
+      for (let seed = 0; seed < 200; seed++) {
+        const types = new Set(generateAct(act, mulberry32(seed)).nodes.map((n) => n.type));
+        expect(types, `Akt ${act}, Seed ${seed}`).toContain('shop');
+        expect(types, `Akt ${act}, Seed ${seed}`).toContain('treasure');
+        expect(types, `Akt ${act}, Seed ${seed}`).toContain('perk');
+      }
+    }
+  });
+
   it('Snapshot mit Seed 1234', () => {
     const map = generateAct(1, mulberry32(1234));
     expect(map.nodes.map((n) => ({ id: n.id, type: n.type, layer: n.layer, edges: n.edges }))).toMatchInlineSnapshot(`
@@ -64,15 +75,17 @@ describe('MapGenerator', () => {
         {
           "edges": [
             "n2_0",
+            "n2_1",
+            "n2_2",
           ],
           "id": "n1_0",
           "layer": 1,
-          "type": "combat_normal",
+          "type": "shop",
         },
         {
           "edges": [
+            "n2_0",
             "n2_1",
-            "n2_2",
           ],
           "id": "n1_1",
           "layer": 1,
@@ -80,6 +93,7 @@ describe('MapGenerator', () => {
         },
         {
           "edges": [
+            "n3_0",
             "n3_1",
           ],
           "id": "n2_0",
@@ -97,7 +111,6 @@ describe('MapGenerator', () => {
         },
         {
           "edges": [
-            "n3_0",
             "n3_1",
           ],
           "id": "n2_2",
@@ -110,7 +123,7 @@ describe('MapGenerator', () => {
           ],
           "id": "n3_0",
           "layer": 3,
-          "type": "combat_normal",
+          "type": "treasure",
         },
         {
           "edges": [

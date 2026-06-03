@@ -26,38 +26,50 @@ export interface RoomTileState {
 
 export const renderRoomTile = (state: RoomTileState, onClick?: () => void): HTMLElement => {
   const meta = META[state.type];
-  const imgUrl = nodeButtonUrl(state.type, (clean) => {
+  // Aktiv = anklickbar (erreichbar) oder aktueller Standort. Alles andere
+  // (besucht / noch nicht erreichbar) bekommt die inaktive "nicht betretbar"-Variante.
+  const isActive = state.reachable || state.current;
+  const imgUrl = nodeButtonUrl(state.type, isActive, (clean) => {
     const img = tile.querySelector('img');
-    if (img && img.src !== clean) img.src = clean;
+    if (!img) return;
+    if (img.src !== clean) img.src = clean;
+    img.style.opacity = '1';
   });
+  // Falls die saubere Data-URL noch nicht im Cache ist (imgUrl ist dann das
+  // Original-PNG mit weißem Hintergrund), starten wir das Bild unsichtbar und
+  // blenden via onReady-Callback ein.
+  const imgIsClean = imgUrl?.startsWith('data:') === true;
   const tile = document.createElement('button');
   tile.type = 'button';
   tile.dataset.roomType = state.type;
   const enabled = state.reachable && !state.current;
-  // Kein zusätzlicher CSS-Glow — die PNG-Knöpfe haben ihren eigenen Look.
-  const glow = 'none';
-  const visitedDim = state.visited && !state.current;
+  // Aktive Knöpfe größer als inaktive — klare Hierarchie "betretbar vs. nicht".
+  // (Nach dem Autocrop sind alle Bilder gleich groß, daher steuert der Scale hier.)
+  const baseScale = isActive ? 1 : 0.82;
+  // Zustand wird komplett über aktives/inaktives PNG + Häkchen kommuniziert —
+  // kein zusätzliches Dimmen/Graustufen mehr (inaktive Bilder sind schon entsättigt).
   tile.style.cssText = `
     position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px;
     width: ${meta.size}px; height: ${meta.size + 28}px;
     background: transparent; border: none; padding: 0;
     cursor: ${enabled ? 'pointer' : 'default'};
-    opacity: ${visitedDim ? 0.55 : state.reachable || state.current ? 1 : 0.75};
+    opacity: 1;
   `;
 
   tile.innerHTML = `
     <div style="
       position: relative; width: ${meta.size}px; height: ${meta.size}px;
       display: flex; align-items: center; justify-content: center;
-      transition: transform 120ms, filter 120ms;
-      filter: ${glow};
+      transition: transform 120ms;
+      transform: scale(${baseScale});
     ">
       ${
         imgUrl
           ? `<img src="${imgUrl}" alt="${meta.label}" style="
               width: 100%; height: 100%; object-fit: contain;
               pointer-events: none;
-              ${visitedDim ? 'filter: grayscale(0.6) brightness(0.85);' : ''}
+              opacity: ${imgIsClean ? 1 : 0};
+              transition: opacity 120ms ease-out;
             "/>`
           : `<div style="
               width:100%; height:100%; border-radius:50%;
@@ -80,11 +92,11 @@ export const renderRoomTile = (state: RoomTileState, onClick?: () => void): HTML
     tile.addEventListener('click', onClick);
     tile.addEventListener('mouseenter', () => {
       const ring = tile.firstElementChild as HTMLElement | null;
-      if (ring) ring.style.transform = 'scale(1.08)';
+      if (ring) ring.style.transform = `scale(${baseScale * 1.08})`;
     });
     tile.addEventListener('mouseleave', () => {
       const ring = tile.firstElementChild as HTMLElement | null;
-      if (ring) ring.style.transform = 'scale(1)';
+      if (ring) ring.style.transform = `scale(${baseScale})`;
     });
   }
   return tile;

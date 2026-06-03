@@ -47,7 +47,12 @@
 
 body {
   margin: 0;
-  background: #0f0c08;
+  /* Warmer Letterbox-Hintergrund: der Bereich links/rechts (bzw. oben/unten)
+     neben der zentrierten 1280×800-Box. Statt flachem Schwarz ein gedämpfter
+     Parchment-Verlauf, der zur Spielpalette passt. */
+  background:
+    radial-gradient(ellipse at 50% 25%, #2c241a 0%, #1a140d 70%);
+  background-attachment: fixed;
   font-family: "IBM Plex Sans", system-ui, sans-serif;
   color: var(--ink);
 }
@@ -75,6 +80,10 @@ body {
   transform: scale(var(--ui-scale, 1));
   transform-origin: center center;
   flex-shrink: 0;
+  /* Weicher Übergang von der Box in die Letterbox-Balken — warm getönter
+     Schatten in der Balken-Farbe (#1a140d), damit die Kante in die Balken
+     verschmilzt statt einen dunklen Ring zu bilden. */
+  box-shadow: 0 0 60px 6px rgba(26, 20, 13, 0.7);
 }
 
 /* === Screen frame — sanfter Fade-In bei jedem Screen-Wechsel ===
