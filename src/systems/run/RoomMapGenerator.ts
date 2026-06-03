@@ -15,6 +15,8 @@ import { randInt } from '../rng';
  * **Garantien** (gegen Schein-Kampfräume):
  * - Jeder Zwischen-Layer hat MIND. einen `sub_combat`-Knoten.
  * - Jeder Pfad vom Spawn zum Exit passiert mindestens diesen Combat-Knoten.
+ * - Die Sub-Map enthält IMMER mind. einen `sub_treasure` (in `treasureLayer`,
+ *   der dafür mind. 2 Knoten bekommt, damit der Combat-pro-Layer erhalten bleibt).
  *
  * Reachability: jeder Layer-L+1-Knoten bekommt mind. eine Eingangs-Edge.
  */
@@ -24,21 +26,30 @@ export const generateRoom = (worldNode: MapNode, actNumber: number, rng: Rng): R
 
   const exitType: SubNodeType = worldNode.type === 'combat_hard' ? 'mini_boss' : 'exit';
 
+  // Ein Mid-Layer (Index 1..midLayers) bekommt einen Pflicht-Schatz, damit jede
+  // Sub-Map mind. einen sub_treasure enthält.
+  const treasureLayer = 1 + randInt(rng, 0, midLayers);
+
   const nodes: SubNode[] = [];
   const layerIds: string[][] = [];
 
   for (let li = 0; li < totalLayers; li++) {
     const ids: string[] = [];
     const isEndLayer = li === 0 || li === totalLayers - 1;
-    const count = isEndLayer ? 1 : 1 + randInt(rng, 0, 2);
+    // Der treasureLayer braucht mind. 2 Knoten (1 Combat + 1 Schatz).
+    const count = isEndLayer ? 1 : Math.max(li === treasureLayer ? 2 : 1, 1 + randInt(rng, 0, 2));
     // Index des Pflicht-Combat in diesem Mid-Layer (immer mind. einen pro Layer).
     const forcedCombatIdx = isEndLayer ? -1 : randInt(rng, 0, count);
+    // Pflicht-Schatz-Index im treasureLayer — garantiert ungleich dem Combat-Index.
+    const forcedTreasureIdx =
+      li === treasureLayer ? (forcedCombatIdx + 1 + randInt(rng, 0, count - 1)) % count : -1;
     for (let i = 0; i < count; i++) {
       const id = `s${li}_${i}`;
       let type: SubNodeType;
       if (li === 0) type = 'spawn';
       else if (li === totalLayers - 1) type = exitType;
       else if (i === forcedCombatIdx) type = 'sub_combat';
+      else if (i === forcedTreasureIdx) type = 'sub_treasure';
       else type = rng() < 0.6 ? 'sub_combat' : 'sub_treasure';
       const x = (li + 0.5) / totalLayers;
       const yStep = 1 / (count + 1);

@@ -116,6 +116,37 @@ const LAYERS_BY_ACT: Record<number, readonly LayerSpec[]> = {
   3: ACT_3_LAYERS,
 };
 
+/** Sonder-Räume, von denen jeder Akt MIND. einen enthalten muss. Fehlt einer nach
+ *  dem gewichteten Würfeln, wird ein Mid-Layer-Kampfknoten dazu umgewandelt. */
+const GUARANTEED_NODE_TYPES: readonly NodeType[] = ['shop', 'treasure', 'perk'];
+const COMBAT_NODE_TYPES: readonly NodeType[] = ['combat_normal', 'combat_hard'];
+
+/** Stellt sicher, dass jeder Sonder-Raum-Typ (Shop/Schatz/Perk) mind. einmal
+ *  vorkommt. Wandelt fehlende Typen auf zufällige Mid-Layer-Kampfknoten um —
+ *  combat_normal bevorzugt, damit der Schwierigkeitsgrad erhalten bleibt. */
+const ensureGuaranteedNodeTypes = (nodes: MapNode[], lastLayer: number, rng: Rng): void => {
+  const present = new Set(nodes.map((n) => n.type));
+  const missing = GUARANTEED_NODE_TYPES.filter((t) => !present.has(t));
+  if (missing.length === 0) return;
+
+  const isMidCombat = (n: MapNode): boolean =>
+    n.layer !== 0 && n.layer !== lastLayer && COMBAT_NODE_TYPES.includes(n.type);
+  const shuffle = (idx: number[]): number[] => idx.sort(() => rng() - 0.5);
+  const idxOf = (predicate: (n: MapNode) => boolean): number[] =>
+    nodes.map((n, i) => ({ n, i })).filter(({ n }) => predicate(n)).map(({ i }) => i);
+
+  const candidates = [
+    ...shuffle(idxOf((n) => isMidCombat(n) && n.type === 'combat_normal')),
+    ...shuffle(idxOf((n) => isMidCombat(n) && n.type === 'combat_hard')),
+  ];
+
+  missing.forEach((type, k) => {
+    const idx = candidates[k];
+    if (idx === undefined) return;
+    nodes[idx] = { ...nodes[idx]!, type };
+  });
+};
+
 /** Anzahl Akte in einem kompletten Run. Sieg gegen Akt N-Boss = Game-Won. */
 export const MAX_ACTS = 3;
 
@@ -157,6 +188,9 @@ export const generateAct = (actNumber: number, rng: Rng): ActMap => {
     }
     layerIds.push(ids);
   }
+
+  // 1b) Sonder-Räume garantieren (mind. 1 Shop/Schatz/Perk pro Akt).
+  ensureGuaranteedNodeTypes(nodes, layers.length - 1, rng);
 
   // 2) Edges erzeugen: jeder Knoten bekommt 1–2 Out-Edges zur nächsten Layer.
   //    Danach prüfen, ob jeder Ziel-Knoten mindestens eine eingehende Edge hat —

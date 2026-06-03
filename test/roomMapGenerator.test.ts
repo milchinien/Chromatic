@@ -63,6 +63,33 @@ describe('RoomMapGenerator', () => {
     }
   });
 
+  it('jede Sub-Map enthält mind. einen sub_treasure (über viele Seeds/Akte)', () => {
+    for (let act = 1; act <= 3; act++) {
+      for (let seed = 0; seed < 200; seed++) {
+        const room = generateRoom(wn('combat_normal'), act, mulberry32(seed));
+        const hasTreasure = room.nodes.some((n) => n.type === 'sub_treasure');
+        expect(hasTreasure, `Akt ${act}, Seed ${seed}`).toBe(true);
+      }
+    }
+  });
+
+  it('jeder Zwischen-Layer behält mind. einen sub_combat trotz Pflicht-Schatz', () => {
+    for (let seed = 0; seed < 200; seed++) {
+      const room = generateRoom(wn('combat_normal'), 2, mulberry32(seed));
+      const byLayer = new Map<number, string[]>();
+      for (const n of room.nodes) {
+        const arr = byLayer.get(n.layer) ?? [];
+        arr.push(n.type);
+        byLayer.set(n.layer, arr);
+      }
+      for (const [layer, types] of byLayer) {
+        const isEnd = layer === 0 || layer === Math.max(...byLayer.keys());
+        if (isEnd) continue;
+        expect(types, `Seed ${seed}, Layer ${layer}`).toContain('sub_combat');
+      }
+    }
+  });
+
   it('getOrCreateRoomMap cached die Map beim zweiten Aufruf', () => {
     const cache = new Map<string, RoomMap>();
     const runStateStub = { seed: 5, actNumber: 1, roomMaps: cache };
