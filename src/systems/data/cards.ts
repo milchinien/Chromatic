@@ -1,4 +1,4 @@
-import type { Card, CardClass, PassiveEffect, UnitStats } from '../../domain/Card';
+import type { Card, CardClass, Color, PassiveEffect, UnitStats } from '../../domain/Card';
 
 // =====================================================================
 // 25 Karten — 5 Farben × 5 Klassen, exakt nach User-Anhang.
@@ -268,3 +268,8 @@ export const cardById = (id: string): Card => {
   if (!c) throw new Error(`Unknown card id: ${id}`);
   return c;
 };
+
+/** Alle Karten-IDs einer Farbe (5 Klassen je Farbe). Für mono-farbige
+ *  Gegner-Decks pro Akt (Natur-Akt zieht nur Natur-Karten usw.). */
+export const cardsByColor = (color: Color): string[] =>
+  ALL_CARDS.filter((c) => c.color === color).map((c) => c.id);

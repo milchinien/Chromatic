@@ -1,48 +1,70 @@
-import type { Card } from '../../domain/Card';
+import type { Card, UnitStats } from '../../domain/Card';
 import type { Unit } from '../../domain/Unit';
 import type { Side } from '../../domain/Side';
+import type { DeckEntry } from '../../domain/Run';
 import type { Rng } from '../rng';
 import {
-  AI_DECISION_INTERVAL_SEC,
   BASE_HP_START,
   BASE_HP_MAX,
-  DRAW_INTERVAL_SEC,
-  HAND_SIZE,
   MANA_MAX,
   MANA_REGEN_PER_SEC,
   MANA_START,
+  ROUND_BANNER_SEC,
 } from '../data/balance';
+
+/** Eine in der aktuellen Runde gezogene, aufgedeckte Karte inkl. gerollter
+ *  Truppenzahl. Beim Spielen spawnt sie `troops` Units mit `leveledStats`. */
+export interface DrawnCard {
+  card: Card;
+  level: number;
+  troops: number;
+}
 
 export interface SideState {
   baseHp: number;
   maxBaseHp: number;
+  /** Mana ist seit dem Runden-Redesign Platzhalter: sichtbar + regeneriert,
+   *  gated das Spielen aber NICHT (pro Runde 2 Karten). */
   mana: number;
   maxMana: number;
   manaRegen: number;
-  hand: Card[];
-  handSize: number;
-  drawIntervalSec: number;
-  drawTimer: number;
-  deck: Card[];
+  /** Komplettes Deck mit Upgrade-Leveln. Wächst nie — Random-Pool-Draw. */
+  deck: DeckEntry[];
+  // --- Runden-Draw ---
+  /** 5 verdeckte Optionen (nur Spieler; Gegner zieht direkt 3). */
+  drawOptions: DeckEntry[];
+  /** Blind gepickte Indizes in drawOptions (Spieler, bis PICK_COUNT). */
+  pickedIdx: number[];
+  /** Aufgedeckte gepickte Karten dieser Runde (Spieler & Gegner). */
+  picked: DrawnCard[];
+  /** Indizes in `picked` der gespielten Karten (bis PLAY_COUNT). */
+  selectedIdx: number[];
+  // --- Combat-Progression ---
   exp: number;
   level: number;
-  aiDecisionCooldown: number;
-  /** Pause zwischen zwei KI-Entscheidungen. Default = AI_DECISION_INTERVAL_SEC,
-   *  bei höheren Akten wird das verkürzt → härtere Gegner. */
-  aiDecisionIntervalSec: number;
   /** Base-HP-Heilung pro Sekunde (Perks + Level-Ups). */
   baseHpRegen: number;
   /** Pauschal-Damage-Bonus auf alle eigenen Units (Perks + Level-Ups). */
   globalDamageBonus: number;
+  /** Zusätzliche Truppen pro gespielter Karte (Level-Up-Vorteil). */
+  troopBonus: number;
 }
 
 export type CombatStatus = 'running' | 'paused' | 'levelup' | 'victory' | 'defeat';
+
+/** Phasen einer Runde:
+ *  banner  → großes „Runde N"; draw → 5 verdeckte, blind 3 picken;
+ *  select  → 2 der 3 spielen; resolve → Echtzeit-Gefecht bis Feld leer;
+ *  roundEnd→ Feld leeren, nächste Runde. */
+export type RoundPhase = 'banner' | 'draw' | 'select' | 'resolve' | 'roundEnd';
 
 export interface PendingSpawn {
   card: Card;
   side: Side;
   x: number;
   y: number;
+  /** Optionale Stat-Überschreibung (z.B. geleverte Stats eines Truppen-Stacks). */
+  stats?: UnitStats;
 }
 
 export interface EventLogEntry {
@@ -69,6 +91,13 @@ export interface CombatState {
   tick: number;
   elapsedSec: number;
   status: CombatStatus;
+  /** Aktuelle Rundenphase. */
+  roundPhase: RoundPhase;
+  roundNumber: number;
+  /** Restzeit der Banner-Anzeige (Sek.). */
+  bannerTimer: number;
+  /** Laufzeit der aktuellen Resolve-Phase (Sek.) — Safety gegen Endlos-Stau. */
+  resolveTimer: number;
   /** Set wenn eine Seite einen Level-Up auswählen muss. Pausiert den Loop. */
   pendingLevelUp: Side | null;
   /** Vom Renderer gelesen, wer als nächstes spawnt (z.B. Nekromant-onDeath). */
@@ -81,44 +110,44 @@ export interface CombatState {
   rng: Rng;
   log: EventLogEntry[];
   nextUnitId: number;
-  /** Visuelle Feedback-Events (Phase-7-Polish), vom Combat-Tick gefüttert
-   *  und vom Renderer abgebaut. */
   damageNumbers: DamageNumber[];
   screenShake: ScreenShake;
-  /** Zähler für SFX-Trigger — Renderer liest delta und feuert pro Event. */
   spawnFxQueue: { side: Side; x: number; y: number }[];
   deathFxQueue: { x: number; y: number }[];
   baseHitFxQueue: { side: Side }[];
 }
 
-const initialSide = (deck: Card[]): SideState => ({
+const initialSide = (deck: DeckEntry[]): SideState => ({
   baseHp: BASE_HP_START,
   maxBaseHp: BASE_HP_MAX,
   mana: MANA_START,
   maxMana: MANA_MAX,
   manaRegen: MANA_REGEN_PER_SEC,
-  hand: [],
-  handSize: HAND_SIZE,
-  drawIntervalSec: DRAW_INTERVAL_SEC,
-  drawTimer: 0,
   deck: [...deck],
+  drawOptions: [],
+  pickedIdx: [],
+  picked: [],
+  selectedIdx: [],
   exp: 0,
   level: 1,
-  aiDecisionCooldown: 0,
-  aiDecisionIntervalSec: AI_DECISION_INTERVAL_SEC,
   baseHpRegen: 0,
   globalDamageBonus: 0,
+  troopBonus: 0,
 });
 
 export const createCombatState = (
-  playerDeck: Card[],
-  enemyDeck: Card[],
+  playerDeck: DeckEntry[],
+  enemyDeck: DeckEntry[],
   rng: Rng,
 ): CombatState => {
-  const state: CombatState = {
+  return {
     tick: 0,
     elapsedSec: 0,
     status: 'running',
+    roundPhase: 'banner',
+    roundNumber: 1,
+    bannerTimer: ROUND_BANNER_SEC,
+    resolveTimer: 0,
     pendingLevelUp: null,
     pendingSpawns: [],
     player: initialSide(playerDeck),
@@ -134,14 +163,6 @@ export const createCombatState = (
     deathFxQueue: [],
     baseHitFxQueue: [],
   };
-  // Sofortige Initial-Hand befüllen (sonst startet man mit leerer Hand).
-  for (const side of [state.player, state.enemy]) {
-    while (side.hand.length < side.handSize && side.deck.length > 0) {
-      const idx = Math.floor(rng() * side.deck.length);
-      side.hand.push(side.deck[idx]!);
-    }
-  }
-  return state;
 };
 
 export const getSide = (state: CombatState, side: Side): SideState =>

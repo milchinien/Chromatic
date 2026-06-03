@@ -155,7 +155,7 @@ export const RoomMap: Screen = (host, ctx) => {
       ctx.go('treasure');
       return;
     }
-    const enc = encounterForSubNodeType(node.type, run.actNumber);
+    const enc = encounterForSubNodeType(node.type, run.actNumber, run.actColor);
     if (enc) {
       setActiveEncounter(enc);
       ctx.go('combat');

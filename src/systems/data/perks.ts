@@ -24,23 +24,23 @@ interface PerkDef extends Perk {
 export const PERKS: readonly PerkDef[] = [
   {
     id: 'mana_regen_x2',
-    name: 'Adern der Welt',
-    description: 'Mana regeneriert doppelt so schnell.',
+    name: 'Lebende Legion',
+    description: '+2 Truppen pro gespielter Karte.',
     glyph: '⟳',
-    color: 'var(--mana)',
+    color: 'var(--c-natur)',
     onCombatMount: (side) => {
-      side.manaRegen *= 2;
+      // Mana ist inert — Perk auf Truppen umgewidmet.
+      side.troopBonus += 2;
     },
   },
   {
     id: 'max_mana_plus_20',
     name: 'Quell des Geistes',
-    description: 'Maximales Mana um 20 erhöht.',
+    description: 'Base regeneriert +1 HP/Sek.',
     glyph: '◉',
-    color: 'var(--mana)',
+    color: 'var(--c-natur)',
     onCombatMount: (side) => {
-      side.maxMana += 20;
-      side.mana = Math.min(side.maxMana, side.mana + 20);
+      side.baseHpRegen += 1;
     },
   },
   {
@@ -79,12 +79,14 @@ export const PERKS: readonly PerkDef[] = [
   },
   {
     id: 'extra_hand_card',
-    name: 'Vier-Karten-Hand',
-    description: '+1 Karte in der Hand.',
+    name: 'Geschulte Hand',
+    description: 'Alle befreundeten Units +3 Damage.',
     glyph: '✦',
     color: 'var(--gold-hi)',
+    // Hand-Größe ist im Runden-Modell fix (5→3→2). Perk umgewidmet auf Damage,
+    // bis das endgültige Perk-Rework (Schritt 7) greift.
     onCombatMount: (side) => {
-      side.handSize += 1;
+      side.globalDamageBonus += 3;
     },
   },
 ];

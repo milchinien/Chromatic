@@ -1,24 +1,27 @@
 import { describe, it, expect } from 'vitest';
-import { addCardToDeck, createRunState } from '../src/systems/run/RunState';
-import { cardById } from '../src/systems/data/cards';
+import { cardLevel, createRunState, upgradeCard } from '../src/systems/run/RunState';
 
-describe('RunState — Deck-Wachstum', () => {
-  it('addCardToDeck hängt Karte an und behält bestehende', () => {
+describe('RunState — Upgrades (Deck wächst nicht)', () => {
+  it('Starter-Karten beginnen auf Level 1', () => {
     const s = createRunState(1);
-    const before = s.deck.length;
-    const card = cardById('zeitweiser');
-    addCardToDeck(s, card);
-    expect(s.deck.length).toBe(before + 1);
-    expect(s.deck.at(-1)?.id).toBe('zeitweiser');
-    expect(s.deck.filter((c) => c.id === card.id).length).toBe(1);
+    for (const c of s.deck) expect(cardLevel(s, c.id)).toBe(1);
   });
 
-  it('mehrfaches Hinzufügen derselben Karte erhöht den Pool', () => {
+  it('upgradeCard erhöht das Level, Deck-Länge bleibt konstant', () => {
     const s = createRunState(1);
-    const card = cardById('grabwaechter');
-    const before = s.deck.filter((c) => c.id === 'grabwaechter').length;
-    addCardToDeck(s, card);
-    addCardToDeck(s, card);
-    expect(s.deck.filter((c) => c.id === 'grabwaechter').length).toBe(before + 2);
+    const id = s.deck[0]!.id;
+    const len = s.deck.length;
+    upgradeCard(s, id);
+    expect(cardLevel(s, id)).toBe(2);
+    expect(s.deck.length).toBe(len);
+  });
+
+  it('mehrfaches Upgraden stapelt das Level', () => {
+    const s = createRunState(1);
+    const id = s.deck[0]!.id;
+    upgradeCard(s, id);
+    upgradeCard(s, id);
+    upgradeCard(s, id);
+    expect(cardLevel(s, id)).toBe(4);
   });
 });

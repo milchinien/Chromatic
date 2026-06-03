@@ -85,12 +85,13 @@ Der Spieler **wählt per Klick** den nächsten Knoten (analog Welt-Karte). Tritt
 
 ### Ebene C — Akt-Struktur (Macro-Run)
 
-Nach dem **Endboss** eines Akts ist der Run **nicht zu Ende**. Stattdessen:
+**Boss-Auswahl vor jedem Akt:** Bevor die Weltkarte erscheint, wählt der Spieler zwischen **2 zufälligen Farb-Bossen** (Wiederholung über Akte möglich). Die gewählte Farbe wird zur **Akt-Farbe** — **alle Gegner des Akts** (normale Kämpfe, Mini-Bosse, Boss) ziehen ausschließlich Karten dieser Farbe.
 
-- Sieg über Endboss → **neues, zufallsgeneriertes Welt-Karten-Fenster**
-- Jeder neue Akt hat **mehr Räume** als der vorherige
-- Jeder Akt endet mit einem neuen, stärkeren Endboss
-- Schwierigkeit skaliert mit jedem Akt
+Nach dem **Endboss** eines Akts ist der Run **nicht zu Ende**:
+
+- Sieg über Endboss → neue **Boss-Auswahl** → **neues, zufallsgeneriertes Welt-Karten-Fenster**
+- Schwierigkeit skaliert mit jedem Akt (Gegner-Karten-Level: Stats + Truppen)
+- Der Run läuft **endlos**, bis der Spieler verliert
 
 So entsteht ein wiederholbarer, immer schwerer werdender Run-Aufbau.
 
@@ -112,35 +113,34 @@ UI:
 - Klick → Perk wird gewählt (gehoverter Perk wird hervorgehoben)
 - Bestätigung → Perk ist **permanent aktiv** für den Rest des Runs
 
-Beispiel-Perks:
-- +2× Mana-Regeneration
-- +20 Max-Mana
-- +20 Base-HP
+Beispiel-Perks (mana-frei, da Mana nur Platzhalter ist):
+- +2 Truppen pro gespielter Karte
 - +1 HP-Regeneration
+- +20 Base-HP
 - +5 Damage aller Units
-- Eine zusätzliche Hand-Karte (4 statt 3)
 
-### 4.3 Shop
-UI-Aufbau:
-- Oben links: Spieler-Coins
-- Mitte: Reihe von **kaufbaren Karten** (4–6 Stück)
-- Eine Karte kann **ausgewählt** werden (hervorgehoben)
-- Rechts: **Info-Feld** mit Karten-Details beim Hovern (Farbe, Klasse, Damage, HP, Fähigkeiten)
-- Kauf-Button → Coins werden abgezogen, Karte wandert ins Deck
+### 4.3 Shop (Upgrade-Schmiede)
+**Kein Karten-Kauf mehr.** Hier **upgradet** der Spieler seine eigenen Deck-Karten.
+- Oben rechts: Spieler-Coins
+- Mitte: die **eigenen Deck-Karten** mit aktuellem Level + Upgrade-Kosten
+- Rechts: **Info-Feld** zeigt aktuelle vs. nächste Stats (Damage/HP) und Truppen-Range
+- Upgrade-Button → Coins werden abgezogen (`60 + 40·Level`), Karten-Level +1
 
-Funktion: Hier baut der Spieler sein Deck strategisch aus.
+Funktion: Der Spieler verstärkt sein **festes** Deck strategisch.
 
 ### 4.4 Schatz-Raum
-- Garantierte Belohnung ohne Kampf
-- Coins, eine zufällige Karte oder Heilung der Base-HP
+- Garantierte Belohnung ohne Kampf — der Spieler **wählt eine** von:
+  - **1 gratis Karten-Upgrade**
+  - **Heilung** der Base-HP (+30)
+  - **Coins** (+50)
 
 ### 4.5 Zwischenboss
 - Stärkerer Gegner-Encounter
-- Belohnt mit Coins + Karte + Zugang zum nächsten Welt-Raum
+- Belohnt mit Coins + **gratis Karten-Upgrade** + Zugang zum nächsten Welt-Raum
 
 ### 4.6 Endboss
 - Finaler Kampf des aktuellen Akts
-- Sieg = neuer, zufallsgenerierter Akt mit **mehr Räumen** und stärkeren Gegnern
+- Sieg = neue Boss-Auswahl + neuer, zufallsgenerierter Akt mit stärkeren Gegnern
 
 ---
 
@@ -148,24 +148,25 @@ Funktion: Hier baut der Spieler sein Deck strategisch aus.
 
 | Ressource | Wo verwendet | Wie verdient |
 |-----------|--------------|--------------|
-| **Coins** (550 Start) | Shop | Gegner besiegen, Schatz-Räume |
-| **Mana** (20 Start) | Karten spielen im Combat | Auto-Regen (1/Sek.) |
+| **Coins** (550 Start) | Shop (Karten-Upgrades) | Gegner besiegen, Schatz-Räume |
+| **Mana** (20 Start) | *Platzhalter* — aktuell ohne Funktion | Auto-Regen (1/Sek.) |
 | **EXP** | Level-Up im Combat | Gegner-Units töten |
 | **Base-HP** (100 Start) | Überleben des Combats | Heilung in Schatz-Räumen |
 
 ---
 
-## 6. COMBAT-SYSTEM
+## 6. COMBAT-SYSTEM (RUNDENBASIERT)
 
 ### 6.1 Konzept
-**Deck-Building + Real-Time Combat Hybrid**. Der Spieler ist kein Action-Held, sondern **Feldmarschall der Magie** — er gibt Befehle, seine Einheiten führen sie aus.
+**Deck-Building + rundenbasierter Truppen-Combat**. Der Spieler ist **Feldmarschall der Magie** — pro Runde wählt er zwei Karten, die als Truppen-Stacks ins Feld ziehen.
 
-**Kernidee:** Kombinationen sind alles. Zwei Karten gleicher Farbe oder Klasse verstärken sich gegenseitig.
+**Kernidee:** Kombinationen sind alles. Die zwei pro Runde gespielten Karten verstärken sich gegenseitig, wenn sie **Farbe oder Klasse** teilen.
 
 **Combat-Modell:**
-- **Real-Time:** Mana regeneriert kontinuierlich, neue Hand-Karten werden in festem Intervall automatisch nachgezogen (Auto-Draw).
-- **Karten jederzeit spielbar**, sobald genug Mana vorhanden ist — keine festen Runden.
-- **Units persistent** (wie Clash Royale): Gespawnte Units bleiben auf dem Feld, marschieren und kämpfen bis sie sterben. Das Feld füllt sich mit der Zeit.
+- **Rundenbasiert:** Jede Runde beginnt mit einem großen **„Runde N"**-Banner, dann Ziehen → Auswählen → Echtzeit-Gefecht.
+- **Truppen pro Karte:** Jede gezogene Karte enthält eine **zufällige Truppenzahl** (gerade Zahlen; stärkere Karte = weniger Truppen). Beim Spielen spawnt sie entsprechend viele Einheiten desselben Typs.
+- **Feld-Reset pro Runde:** Das Echtzeit-Gefecht läuft, bis keine lebenden Einheiten mehr da sind; danach wird das Feld geleert und die nächste Runde beginnt. Zugefügter Base-Schaden bleibt.
+- **Mana** ist aktuell nur **Platzhalter-Ressource** (sichtbar, regeneriert) — es gated das Spielen nicht. Konkrete Nutzung folgt später.
 
 ### 6.2 Spielfeld (2D Side-Scroller, Super-Mario-Perspektive)
 
@@ -189,18 +190,16 @@ Funktion: Hier baut der Spieler sein Deck strategisch aus.
 - **Unten** = Handkarten + Mana-Leiste
 - **Gegner sieht deine Kartenauswahl NICHT**
 
-### 6.3 Mana-System
-- **Max:** 20 (am Anfang), erweiterbar durch Perks
-- **Regeneration:** +1 Mana/Sek. (ohne Upgrades)
-- **Kosten:**
-  - Schwache Karten: 3–5 Mana
-  - Mittlere Karten: 7–12 Mana
-  - Starke Karten: 15+ Mana
-  - Farblose Super-Karten: oft sehr teuer, aber **keine Combo nötig**
+### 6.3 Ziehen & Auswählen (pro Runde)
+Jede Runde:
+1. Es werden **5 verdeckte Karten** aus dem Deck gezogen (unabhängig zufällig, Random-Pool — kein Discard, kein Reshuffle).
+2. Der Spieler **pickt blind 3** davon (er sieht erst danach, welche er gezogen hat).
+3. Die 3 werden aufgedeckt (mit ihrer gewürfelten Truppenzahl) → der Spieler **spielt 2 davon**.
+4. Teilen die 2 gespielten Karten **Farbe oder Klasse**, greift die **Combo** (siehe 6.5). Andernfalls werden einfach zwei Stacks ohne Bonus gespielt.
 
-Bei zu wenig Mana: **warten** auf Regen. **Neumischen der Hand ist nicht möglich.**
+**Gegner:** zieht direkt **3 zufällige** Karten aus seinem (mono-farbigen) Akt-Deck — ohne den 5er-Blind-Pick — und spielt 2 (bevorzugt ein Combo-Paar). Alles außer dem Deck ist zufällig.
 
-**Karten-Ziehen:** Jede Karte in der Hand wird **unabhängig zufällig** aus dem Deck gezogen (Random-Pool, **kein Discard-Pile, kein Reshuffle**). Dieselbe Karte kann mehrfach hintereinander erscheinen; eine Karte ist nicht zwangsläufig „verbraucht", nur weil sie gespielt wurde.
+**Mana:** Platzhalter-Ressource (Bar sichtbar, regeneriert +1/Sek.), gated das Spielen aber **nicht**.
 
 ### 6.4 Karten-Struktur
 Jede Karte hat:
@@ -225,11 +224,13 @@ Jede Karte hat:
 - HP (Lebenspunkte)
 - Bewegungs-Geschwindigkeit
 
-**4. Mana-Kosten** — was die Karte beim Spielen kostet (typ. 3–18, siehe 6.3)
+**4. Mana-Kosten** — aktuell nur Anzeige/Platzhalter (kein Spiel-Gate). Dient zugleich als Stärke-Maß für die Truppenzahl.
 
 **5. Passive Fähigkeit** — triggert automatisch (z. B. auf Tick, bei Spawn, bei Tod, bei HP-Schwelle)
 
 **6. Combo-Boni (kartenspezifisch)** — Jede Karte definiert ihre **eigenen** Buff-Werte für Farb- und Klassen-Combos (z. B. `colorBuff: { damage: +4 }`, `classBuff: { hp: +5 }`). Es gibt keine globalen Default-Werte pro Farbe/Klasse — die Werte stehen pro Karte fest.
+
+**7. Truppenzahl (pro Ziehung gewürfelt)** — Beim Aufdecken erhält die Karte eine zufällige Truppenzahl in **2er-Schritten**. **Stärkere Karten (höhere Mana) = weniger Truppen** (z. B. schwach 2–20, stark 2–10). Karten-**Upgrades** erhöhen diesen Range (siehe 6.9). Die Zahl wird auf der Karte angezeigt; beim Spielen spawnen so viele Einheiten.
 
 **Beispiele:**
 - **Druide** (Natur/Magier) — 7 DMG, 12 HP — „Heilt alle befreundeten Natur-Units um 1 HP/Sek."
@@ -254,60 +255,48 @@ Beispiele (Werte illustrativ, exakte Werte stehen auf den Karten):
 | Beserker (Krieg/Krieger) | Wachposten (Krieg/Festung) | JA — Farbe | Beide bekommen Color-Buff voneinander |
 | Beserker (Krieg/Krieger) | Blutfuror (Krieg/Krieger) | JA — Farbe + Klasse | Beide bekommen Color- *und* Class-Buff |
 
-### 6.6 Combat-Flow (Real-Time)
+### 6.6 Combat-Flow (rundenbasiert)
 
-Der Combat läuft **kontinuierlich** ab — keine festen Phasen. Folgende Systeme laufen parallel:
+Eine Runde durchläuft feste Phasen:
 
-**Spieler-Aktionen (jederzeit möglich):**
-- Spieler hat **3 Karten in der Hand** (Default; erweiterbar durch Perks).
-- Klick auf eine Karte → Mana wird abgezogen → Unit spawnt links und marschiert nach rechts.
-- Karten können gespielt werden, **sobald genug Mana** vorhanden ist.
+1. **Banner:** Großes **„Runde N"** wird kurz eingeblendet.
+2. **Ziehen:** 5 verdeckte Karten, Spieler pickt blind 3 (siehe 6.3).
+3. **Auswählen:** Die 3 werden mit Truppenzahl aufgedeckt; Spieler wählt 2 und bestätigt. Der Gegner hat parallel schon 3 gezogen und 2 gewählt.
+4. **Gefecht (Echtzeit):** Beide Seiten deployen ihre Truppen-Stacks (Combo-Aura greift sofort, siehe 6.5). Dann läuft die Simulation:
+   - **Bewegung:** Units laufen Richtung gegnerischer Base mit ihrer Speed.
+   - **Targeting/Angriff:** Treffen sie Gegner, kämpfen sie im jeweiligen Angriffstakt.
+   - **Tod & EXP:** Stirbt eine Unit → entfernt, EXP-Anteil wandert zum Gegner-Spieler.
+   - **Base-Damage:** Erreicht eine Unit die gegnerische Base → Base-HP-Schaden, Unit verschwindet.
+   - **Level-Up-Check:** EXP-Schwelle erreicht → Gefecht pausiert, Spieler wählt einen Vorteil (siehe 6.7).
+5. **Rundenende:** Sind keine lebenden Units mehr da (Safety-Cap ~30 s), wird das **Feld geleert** und die nächste Runde beginnt mit dem Banner. Base-Schaden bleibt erhalten.
 
-**Auto-Draw:**
-- In festem Intervall (Vorschlag: **~4 Sekunden**, final TBD) wird eine zufällig gezogene neue Karte in die Hand nachgelegt, falls Platz ist.
-- **Random-Pool:** Jede Ziehung ist unabhängig zufällig aus dem Deck (kein Discard, kein Reshuffle).
+**Gegner-KI:** zieht aus dem **mono-farbigen Akt-Deck** (alle Gegner eines Akts = Akt-Farbe), wählt 2 (bevorzugt Combo-Paar). Härte skaliert über das **Gegner-Karten-Level** (Stats + Truppen) pro Akt.
 
-**Mana-Tick:**
-- Mana regeneriert kontinuierlich (+1/Sek., Default). Erreicht Max → stoppt (kein Overflow).
+**Pause-Verhalten:** ESC pausiert die komplette Simulation.
 
-**Gegner-KI:**
-- KI spielt im Hintergrund nach demselben Modell — **handgemachter Encounter-Karten-Pool pro Encounter-Typ** (Normaler Kampf, Schwerer Kampf, Zwischenboss, Endboss), eigene Mana-Leiste, eigener Auto-Draw.
-- KI-Schwierigkeit (Reaktionszeit, Karten-Wahl, Mana-Effizienz) skaliert mit Fortschritt im Run.
-- KI-Verhaltensmodell für MVP: einfacher Heuristik-Agent (z. B. „spiele die teuerste leistbare Karte alle X Sek., bevorzuge Karten, die mit bereits gespawnten eine Combo bilden"). Tieferer Planungs-Agent später.
+### 6.7 Level-Up im Combat (mit Rarität)
+Bei genug EXP → Level-Up. Es werden **3 Vorteile aus einem größeren Pool gerollt**, der Spieler wählt **einen**. Jeder Vorteil hat eine **Rarität** — höher = stärkerer Effekt:
 
-**Combat-Tick (laufend):**
-1. **Combo-Aura (Field-Aura):** Bei jedem Spawn/Tod werden alle Combo-Auras neu berechnet (siehe 6.5).
-2. **Bewegung:** Units laufen Richtung gegnerischer Base mit ihrer eigenen Speed.
-3. **Targeting:** Trifft eine Unit auf einen Gegner → Kampf beginnt, Angriffe laufen im jeweiligen Angriffstakt.
-4. **Tod & EXP:** Stirbt eine Unit → entfernt, EXP-Anteil (5 / 15 / 30+) wandert zum Spieler.
-5. **Base-Damage:** Erreicht eine Unit die gegnerische Base → Damage in Base-HP, Unit verschwindet (single hit & despawn).
-6. **Level-Up-Check:** EXP-Schwelle erreicht → Combat pausiert, Spieler wählt temporären Vorteil (siehe 6.7).
+| Rarität | Gewicht (≈) |
+|---------|------------|
+| Gewöhnlich (Common) | 50 % |
+| Ungewöhnlich (Uncommon) | 27 % |
+| Selten (Rare) | 14 % |
+| Episch (Epic) | 7 % |
+| Legendär (Legendary) | 2 % |
 
-**Pause-Verhalten:** ESC pausiert die komplette Real-Time-Simulation (Mana-Regen, Auto-Draw, Unit-Bewegung, KI-Aktionen).
-
-### 6.7 Level-Up im Combat
-Bei genug EXP → Level-Up. Spieler wählt einen **temporären Vorteil für den restlichen Kampf**:
-
-| Vorteil | Effekt |
-|---------|--------|
-| +2× Mana-Regen | 2 Mana/Sek. statt 1 |
-| +20 Max-Mana | 20 → 40 |
-| +20 Base-HP | 100 → 120 |
-| +1 HP-Regen | Heilt 1 HP/Sek. |
-| Sofort-Heilung | +20 HP jetzt |
-| +5 Damage | Alle Units +5 DMG |
-
-Level-Schwellen: Lv 1 → 2 nach ~5 Kills, → 3 nach ~10 weiteren, etc.
+Vorteils-Pool (Magnitude skaliert mit Rarität): **+Damage**, **+Truppen** (pro Karte), **+Max Base-HP**, **Sofort-Heilung**, **+HP-Regen**. Die KI nimmt automatisch den seltensten gerollten Vorteil.
 
 ### 6.8 Sieg / Niederlage im Combat
-- **Sieg:** Gegner-Base HP = 0 → zurück zur Raum-Karte. Belohnung: Coins (skaliert mit Encounter-Typ und Akt), evtl. Karten-Drop (Boss/Schwerer Kampf).
+- **Sieg:** Gegner-Base HP = 0 → zurück zur Raum-/Welt-Karte. Belohnung: Coins (skaliert mit Encounter-Typ und Akt); **Boss/Mini-Boss zusätzlich: ein gratis Karten-Upgrade**.
 - **Niederlage:** Spieler-Base HP = 0 → Run beendet, zurück zum Hauptmenü.
-- **Reset zwischen Kämpfen:** EXP und Combat-Level werden nach jedem Encounter zurückgesetzt. Mana startet jeden Kampf bei Start-Mana. Base-HP wird **nicht** automatisch geheilt — Heilung nur in Schatz-Räumen oder durch Perks/Level-Ups, deren Effekt persistent ist (z. B. Sofort-Heilung).
+- **Reset zwischen Kämpfen:** EXP, Combat-Level und Truppen-/Schaden-Boni werden nach jedem Encounter zurückgesetzt. Base-HP wird **nicht** automatisch geheilt — Heilung nur in Schatz-Räumen oder durch Perks/Level-Ups.
 
 ### 6.9 Deck-Aufbau & Starter-Deck
 
-- **Starter-Deck:** Jeder Run startet mit einem **festen Starter-Deck von ~10 Karten** (identisch über alle Runs).
-- **Wachstum:** Das Deck wird im Run durch **Shop, Schatz-Räume und Zwischenboss-Belohnungen** erweitert.
+- **Starter-Deck:** Jeder Run startet mit einem **festen Starter-Deck von ~10 Karten** (identisch über alle Runs), bewusst **mehrfarbig**, damit Combos möglich sind.
+- **Kein Wachstum:** Das Deck **wächst nie**. Shop, Schatz-Räume und Boss-Belohnungen geben ausschließlich **Karten-Upgrades**.
+- **Upgrade:** Ein Karten-Level erhöht **Stats (Damage/HP, +15 %/Stufe)** UND den **Truppen-Range (+2 Min/Max pro Stufe)**.
 - **Keine Entfernung:** Karten können **nicht** aus dem Deck entfernt werden — das Deck wächst monoton.
 - **Konsequenz:** Mit fortschreitendem Run wird das Deck größer und damit unvorhersehbarer (Random-Pool-Draw). Strategische Karten-Auswahl im Shop ist entscheidend.
 

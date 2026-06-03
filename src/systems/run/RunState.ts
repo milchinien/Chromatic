@@ -1,20 +1,33 @@
-import type { Card } from '../../domain/Card';
+import type { Card, Color } from '../../domain/Card';
 import type { RunState, ActMap, RoomMap } from '../../domain/Run';
 import { BASE_HP_MAX, BASE_HP_START } from '../data/balance';
 import { starterDeck } from '../data/starterDeck';
 import { mulberry32 } from '../rng';
-import { generateAct, MAX_ACTS } from './MapGenerator';
+import { generateAct } from './MapGenerator';
 
 export const STARTING_COINS = 550;
+
+/** Default-Akt-Farbe vor der ersten Boss-Auswahl. Wird vom BossSelect-Screen
+ *  überschrieben, bevor der Spieler die Weltkarte betritt. */
+const DEFAULT_ACT_COLOR: Color = 'natur';
+
+const initialCardLevels = (deck: Card[]): Record<string, number> => {
+  const levels: Record<string, number> = {};
+  for (const c of deck) levels[c.id] = levels[c.id] ?? 1;
+  return levels;
+};
 
 export const createRunState = (seed: number): RunState => {
   const rng = mulberry32(seed);
   const map: ActMap = generateAct(1, rng);
+  const deck = starterDeck();
   return {
     seed,
     actNumber: 1,
+    actColor: DEFAULT_ACT_COLOR,
     coins: STARTING_COINS,
-    deck: starterDeck(),
+    deck,
+    cardLevels: initialCardLevels(deck),
     activePerks: [],
     map,
     currentNodeId: map.startNodeId,
@@ -35,8 +48,18 @@ export const addCoins = (state: RunState, amount: number): void => {
   state.coins = Math.max(0, state.coins + amount);
 };
 
-export const addCardToDeck = (state: RunState, card: Card): void => {
-  state.deck.push(card);
+/** Aktuelles Upgrade-Level einer Deck-Karte (Default 1). */
+export const cardLevel = (state: RunState, cardId: string): number =>
+  state.cardLevels[cardId] ?? 1;
+
+/** Karte upgraden (Level +1). Das Deck wächst nie — nur Upgrades. */
+export const upgradeCard = (state: RunState, cardId: string): void => {
+  state.cardLevels[cardId] = cardLevel(state, cardId) + 1;
+};
+
+/** Akt-Farbe setzen (Boss-Auswahl vor jeder Weltkarte). */
+export const setActColor = (state: RunState, color: Color): void => {
+  state.actColor = color;
 };
 
 export const markNodeVisited = (state: RunState, nodeId: string): void => {
@@ -61,12 +84,14 @@ export const healBase = (state: RunState, amount: number): void => {
 
 export const isRunOver = (state: RunState): boolean => state.baseHp <= 0;
 
-export const isFinalAct = (state: RunState): boolean => state.actNumber >= MAX_ACTS;
+/** Runs sind seit dem Redesign endlos (eskalierend bis zur Niederlage) — es gibt
+ *  keinen finalen Akt mehr. Bleibt als Helper für UI-Texte erhalten. */
+export const isFinalAct = (_state: RunState): boolean => false;
 
-/** Nach Boss-Sieg in nicht-letztem Akt: neuen Akt generieren, Caches resetten.
- *  Deck, Coins, Perks, Base-HP bleiben — sie sind dauerhafte Progression. */
+/** Nach Boss-Sieg: neuen, eskalierenden Akt generieren, Caches resetten.
+ *  Deck, Coins, Perks, Base-HP, Card-Levels bleiben — dauerhafte Progression.
+ *  Die Akt-Farbe wird danach über den BossSelect-Screen neu gesetzt. */
 export const advanceToNextAct = (state: RunState): void => {
-  if (isFinalAct(state)) return;
   state.actNumber += 1;
   const rng = mulberry32(state.seed ^ (state.actNumber * 0x9e3779b1));
   state.map = generateAct(state.actNumber, rng);

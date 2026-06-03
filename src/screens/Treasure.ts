@@ -1,31 +1,27 @@
 import type { Screen } from '../router';
 import type { Card } from '../domain/Card';
-import { addCardToDeck, addCoins, healBase, isInRoom, locationKey, markNodeVisited } from '../systems/run/RunState';
+import {
+  addCoins,
+  cardLevel,
+  healBase,
+  isInRoom,
+  locationKey,
+  markNodeVisited,
+  upgradeCard,
+} from '../systems/run/RunState';
 import { getCurrentRun } from '../systems/run/currentRun';
-import { getRandomDrops, treasurePool } from '../systems/data/dropPool';
-import { mulberry32, randInt } from '../systems/rng';
 import { renderCardView } from '../ui/CardView';
 import { sfx } from '../systems/audio';
 import { BG, bgUrl } from '../ui/backgrounds';
 
-type RewardKind = 'coins' | 'card' | 'heal';
 const COINS_AMOUNT = 50;
 const HEAL_AMOUNT = 30;
 
-interface CollectedReward {
-  kind: RewardKind;
-  /** Welche Karte gedroppt wurde (nur bei 'card'). */
-  cardId?: string;
-}
+// Pro Schatz-Knoten nur einmal einlösbar.
+const collectedByNode = new Set<string>();
 
-const collectedByNode = new Map<string, CollectedReward>();
-
-const seedFromKey = (runSeed: number, key: string): number => {
-  let h = runSeed >>> 0;
-  for (let i = 0; i < key.length; i++) h = ((h * 31) ^ key.charCodeAt(i)) >>> 0;
-  return h;
-};
-
+/** Schatz: KEIN Karten-Drop mehr. Der Spieler wählt: 1 gratis Karten-Upgrade,
+ *  Heilung oder Coins. */
 export const Treasure: Screen = (host, ctx) => {
   const run = getCurrentRun();
   if (!run) {
@@ -34,69 +30,24 @@ export const Treasure: Screen = (host, ctx) => {
     return;
   }
 
-  // Composite-Key: in Sub-Map enthält dieser den Welt-Knoten plus den Sub-Knoten,
-  // damit jeder Sub-Treasure eine eigene Belohnung hat.
   const nodeId = locationKey(run);
-  const previous = collectedByNode.get(nodeId);
-  const rng = mulberry32(seedFromKey(run.seed, nodeId));
+  const alreadyDone = collectedByNode.has(nodeId);
 
-  // 1/3 Coins, 1/3 Karte, 1/3 Heilung — per Seed deterministisch.
-  // Wenn HP voll und Heal gerollt würde, würfeln wir nochmal — sonst entsteht
-  // eine sichtbar leere Belohnung trotz "+30 HP".
-  const kinds: RewardKind[] = ['coins', 'card', 'heal'];
-  let chosen: RewardKind;
-  if (previous?.kind) {
-    chosen = previous.kind;
-  } else {
-    chosen = kinds[randInt(rng, 0, kinds.length)]!;
-    if (chosen === 'heal' && run.baseHp >= run.maxBaseHp) {
-      // Bei voller HP: zwischen Coins und Karte würfeln.
-      chosen = rng() < 0.5 ? 'coins' : 'card';
-    }
-  }
-  const cardDrop: Card | undefined =
-    chosen === 'card'
-      ? (() => {
-          if (previous?.cardId) {
-            return treasurePool.find((c) => c.id === previous.cardId);
-          }
-          const [picked] = getRandomDrops(treasurePool, 1, rng);
-          return picked;
-        })()
-      : undefined;
+  const hudRight = `
+    <div class="cm-hud-right">
+      <div class="cm-hp-pill">
+        <span class="cm-hp-dot"></span>
+        <span><span data-slot="hp">${Math.ceil(run.baseHp)}</span><span style="opacity:0.5;"> / ${run.maxBaseHp}</span></span>
+      </div>
+      <div class="cm-coin">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--gold-hi)" stroke-width="1.6">
+          <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/>
+        </svg>
+        <span class="cm-coin-val" data-slot="coins">${run.coins}</span>
+      </div>
+    </div>`;
 
-  const isFirstVisit = !previous;
-  // Tatsächlich geheilte Menge — bei voller HP käme hier 0 raus, daher der
-  // Pre-Reroll oben. Für die UI brauchen wir aber den ehrlichen Wert.
-  let actualHeal = 0;
-  if (isFirstVisit) {
-    if (chosen === 'coins') {
-      addCoins(run, COINS_AMOUNT);
-      sfx.coin();
-    } else if (chosen === 'card' && cardDrop) {
-      addCardToDeck(run, cardDrop);
-      sfx.coin();
-    } else if (chosen === 'heal') {
-      const before = run.baseHp;
-      healBase(run, HEAL_AMOUNT);
-      actualHeal = run.baseHp - before;
-      sfx.coin();
-    }
-    collectedByNode.set(nodeId, { kind: chosen, cardId: cardDrop?.id });
-  }
-
-  const headline = isFirstVisit ? 'Belohnung' : 'Leer';
-  const subline = isFirstVisit
-    ? chosen === 'coins'
-      ? `+${COINS_AMOUNT} Coins`
-      : chosen === 'card' && cardDrop
-        ? `${cardDrop.name} ins Deck`
-        : actualHeal > 0
-          ? `+${actualHeal} HP geheilt`
-          : 'Bereits volle HP'
-    : 'Die Schatztruhe ist bereits leer.';
-
-  host.innerHTML = `
+  const shell = (inner: string): string => `
     <div class="cm-fit"><div class="cm-screen" style="display:flex; align-items:center; justify-content:center; background-image:${bgUrl(BG.treasure!)}; background-size:cover; background-position:center;">
       <div class="cm-hud">
         <div class="cm-hud-left">
@@ -105,44 +56,127 @@ export const Treasure: Screen = (host, ctx) => {
             <span class="cm-act-name">Schatztruhe</span>
           </div>
         </div>
-        <div class="cm-hud-right">
-          <div class="cm-hp-pill">
-            <span class="cm-hp-dot"></span>
-            <span><span data-slot="hp">${run.baseHp}</span><span style="opacity:0.5;"> / ${run.maxBaseHp}</span></span>
-          </div>
-          <div class="cm-coin">
-            <svg viewBox="0 0 24 24" fill="none" stroke="var(--gold-hi)" stroke-width="1.6">
-              <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/>
-            </svg>
-            <span class="cm-coin-val">${run.coins}</span>
-          </div>
-        </div>
+        ${hudRight}
       </div>
+      ${inner}
+    </div></div>`;
 
-      <div style="display:flex; flex-direction:column; align-items:center; gap:18px; text-align:center;">
-        <span class="cm-label">${headline}</span>
-        <div style="font-size:96px; line-height:1; color:var(--gold-hi); text-shadow:0 0 40px rgba(214,169,85,.5);">${isFirstVisit ? '◈' : '✕'}</div>
-        <h2 class="cm-display" style="margin:0; font-size:36px; color:var(--ink);">${subline}</h2>
-        <div data-slot="card-mount"></div>
-        <button class="cm-btn cm-btn--gold" data-action="continue">Weiter</button>
-      </div>
-    </div></div>
-  `;
-
-  if (isFirstVisit && chosen === 'card' && cardDrop) {
-    const mount = host.querySelector<HTMLElement>('[data-slot="card-mount"]')!;
-    mount.appendChild(renderCardView({ card: cardDrop, affordable: true, size: 'md' }));
-  }
-
-  host.querySelector<HTMLButtonElement>('[data-action="continue"]')!.addEventListener('click', () => {
+  const goNext = (): void => {
     if (isInRoom(run)) {
-      // Sub-Map-Treasure: kein Welt-Knoten-Visit, nur zurück in den Raum.
       ctx.go('roommap');
     } else {
-      // Welt-Karten-Treasure: Knoten abgeschlossen.
       markNodeVisited(run, run.currentNodeId);
       ctx.go('worldmap');
     }
+  };
+
+  const refreshHud = (): void => {
+    const c = host.querySelector<HTMLElement>('[data-slot="coins"]');
+    if (c) c.textContent = String(run.coins);
+    const h = host.querySelector<HTMLElement>('[data-slot="hp"]');
+    if (h) h.textContent = String(Math.ceil(run.baseHp));
+  };
+
+  const renderDone = (msg: string): void => {
+    host.innerHTML = shell(`
+      <div style="display:flex; flex-direction:column; align-items:center; gap:18px; text-align:center;">
+        <span class="cm-label">Belohnung</span>
+        <div style="font-size:96px; line-height:1; color:var(--gold-hi); text-shadow:0 0 40px rgba(214,169,85,.5);">◈</div>
+        <h2 class="cm-display" style="margin:0; font-size:36px; color:var(--ink);">${msg}</h2>
+        <button class="cm-btn cm-btn--gold" data-action="continue">Weiter</button>
+      </div>
+    `);
+    host.querySelector<HTMLButtonElement>('[data-action="continue"]')!.addEventListener('click', goNext);
+  };
+
+  // Schon eingelöst → leere Truhe.
+  if (alreadyDone) {
+    host.innerHTML = shell(`
+      <div style="display:flex; flex-direction:column; align-items:center; gap:18px; text-align:center;">
+        <span class="cm-label">Leer</span>
+        <div style="font-size:96px; line-height:1; color:var(--ink-mute);">✕</div>
+        <h2 class="cm-display" style="margin:0; font-size:36px; color:var(--ink);">Die Schatztruhe ist bereits leer.</h2>
+        <button class="cm-btn cm-btn--gold" data-action="continue">Weiter</button>
+      </div>
+    `);
+    host.querySelector<HTMLButtonElement>('[data-action="continue"]')!.addEventListener('click', goNext);
+    return;
+  }
+
+  // Upgrade-Auswahl: eindeutige Deck-Karten anzeigen, eine gratis upgraden.
+  const showUpgradePicker = (): void => {
+    const seen = new Set<string>();
+    const cards: Card[] = [];
+    for (const c of run.deck) if (!seen.has(c.id)) { seen.add(c.id); cards.push(c); }
+    host.innerHTML = shell(`
+      <div style="display:flex; flex-direction:column; align-items:center; gap:18px; text-align:center; max-width:880px;">
+        <span class="cm-label">Gratis-Upgrade</span>
+        <h2 class="cm-display" style="margin:0; font-size:32px; color:var(--ink);">Wähle eine Karte zum Upgraden</h2>
+        <div data-slot="picker" style="display:grid; grid-template-columns: repeat(5, 1fr); gap:12px; align-items:end;"></div>
+      </div>
+    `);
+    const picker = host.querySelector<HTMLElement>('[data-slot="picker"]')!;
+    cards.forEach((card) => {
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'display:flex; flex-direction:column; gap:6px; align-items:center;';
+      const view = renderCardView({
+        card,
+        affordable: true,
+        size: 'sm',
+        onClick: () => {
+          upgradeCard(run, card.id);
+          collectedByNode.add(nodeId);
+          sfx.coin();
+          renderDone(`${card.name} → Stufe ${cardLevel(run, card.id)}`);
+        },
+      });
+      const tag = document.createElement('div');
+      tag.style.cssText =
+        "font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--gold-hi);";
+      tag.textContent = `Lv ${cardLevel(run, card.id)} → ${cardLevel(run, card.id) + 1}`;
+      wrap.appendChild(view);
+      wrap.appendChild(tag);
+      picker.appendChild(wrap);
+    });
+  };
+
+  // Startansicht: 3 Belohnungs-Optionen.
+  host.innerHTML = shell(`
+    <div style="display:flex; flex-direction:column; align-items:center; gap:24px; text-align:center;">
+      <span class="cm-label">Schatz gefunden</span>
+      <h2 class="cm-display" style="margin:0; font-size:40px; color:var(--gold-hi);">Wähle deine Belohnung</h2>
+      <div style="display:flex; gap:20px;">
+        <button class="cm-btn cm-btn--gold" data-action="upgrade" style="width:220px; flex-direction:column; gap:6px; padding:18px;">
+          <span style="font-size:16px;">Gratis-Upgrade</span>
+          <span style="font-family:'IBM Plex Sans', sans-serif; font-size:11px; color:var(--ink-dim); text-transform:none; letter-spacing:0;">Eine Karte +1 Stufe</span>
+        </button>
+        <button class="cm-btn" data-action="heal" style="width:220px; flex-direction:column; gap:6px; padding:18px;" ${run.baseHp >= run.maxBaseHp ? 'disabled' : ''}>
+          <span style="font-size:16px;">+${HEAL_AMOUNT} HP</span>
+          <span style="font-family:'IBM Plex Sans', sans-serif; font-size:11px; color:var(--ink-dim); text-transform:none; letter-spacing:0;">${run.baseHp >= run.maxBaseHp ? 'Bereits volle HP' : 'Base heilen'}</span>
+        </button>
+        <button class="cm-btn" data-action="coins" style="width:220px; flex-direction:column; gap:6px; padding:18px;">
+          <span style="font-size:16px;">+${COINS_AMOUNT} Coins</span>
+          <span style="font-family:'IBM Plex Sans', sans-serif; font-size:11px; color:var(--ink-dim); text-transform:none; letter-spacing:0;">Für den Shop</span>
+        </button>
+      </div>
+    </div>
+  `);
+
+  host.querySelector<HTMLButtonElement>('[data-action="upgrade"]')!.addEventListener('click', showUpgradePicker);
+  host.querySelector<HTMLButtonElement>('[data-action="heal"]')?.addEventListener('click', () => {
+    const before = run.baseHp;
+    healBase(run, HEAL_AMOUNT);
+    collectedByNode.add(nodeId);
+    refreshHud();
+    sfx.coin();
+    renderDone(`+${Math.round(run.baseHp - before)} HP geheilt`);
+  });
+  host.querySelector<HTMLButtonElement>('[data-action="coins"]')!.addEventListener('click', () => {
+    addCoins(run, COINS_AMOUNT);
+    collectedByNode.add(nodeId);
+    refreshHud();
+    sfx.coin();
+    renderDone(`+${COINS_AMOUNT} Coins`);
   });
 };
 

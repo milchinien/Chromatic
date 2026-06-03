@@ -1,51 +1,49 @@
 import { describe, it, expect } from 'vitest';
 import { AiController } from '../src/systems/combat/AiController';
 import { createCombatState } from '../src/systems/combat/CombatState';
-import { UnitSystem } from '../src/systems/combat/UnitSystem';
+import { RoundSystem } from '../src/systems/combat/RoundSystem';
 import { mulberry32 } from '../src/systems/rng';
 import { cardById } from '../src/systems/data/cards';
+import type { DeckEntry } from '../src/domain/Run';
 
-describe('AiController', () => {
-  it('bevorzugt eine Karte, die mit gespawnten Units eine Combo bildet', () => {
-    // Auf Spieler-Seite ein Grabwächter (Untot/Krieger) — die Wahl soll zwischen
-    // einer Combo-Option (Untot ODER Krieger) und einer Nicht-Combo entscheiden.
-    const state = createCombatState([], [], mulberry32(42));
-    UnitSystem.spawn(state, cardById('grabwaechter'), 'player');
-    const stein = cardById('steinbeschwoerer'); // Stein/Magier — keine Combo mit Grabwächter
-    const beser = cardById('berserker'); // Krieger → Class-Combo mit Grabwächter
-    const choice = AiController.pickBest(
-      [
-        { card: stein, idx: 0 },
-        { card: beser, idx: 1 },
-      ],
-      state,
-      'player',
+const entry = (id: string, level = 1): DeckEntry => ({ card: cardById(id), level });
+
+describe('Rundenbasierte Gegner-KI', () => {
+  it('startDraw gibt dem Gegner 3 Karten und wählt genau 2', () => {
+    const enemyDeck = ['grabwaechter', 'knochenross', 'nekromant', 'seelenheiler', 'totenzitadelle'].map(
+      (id) => entry(id),
     );
-    expect(choice.card.id).toBe('berserker');
+    const s = createCombatState([entry('berserker')], enemyDeck, mulberry32(42));
+    RoundSystem.startDraw(s);
+    expect(s.enemy.picked.length).toBe(3);
+    expect(s.enemy.selectedIdx.length).toBe(2);
+    expect(s.roundPhase).toBe('draw');
   });
 
-  it('gibt nichts aus wenn keine Karte leistbar', () => {
-    const state = createCombatState([], [cardById('berserker')], mulberry32(7));
-    state.enemy.mana = 5; // Berserker kostet 7
-    state.enemy.hand = [cardById('berserker')];
-    state.enemy.aiDecisionCooldown = 0;
-    AiController.tick(state, 'enemy', 0);
-    expect(state.units.length).toBe(0);
-    expect(state.enemy.mana).toBe(5);
+  it('confirmSelection spawnt Truppen-Stacks beider Seiten und startet resolve', () => {
+    const s = createCombatState(
+      [entry('berserker'), entry('grabwaechter')],
+      [entry('grabwaechter')],
+      mulberry32(1),
+    );
+    RoundSystem.startDraw(s);
+    // Spieler blind 3 von 5 picken → triggert reveal automatisch.
+    RoundSystem.togglePick(s, 0);
+    RoundSystem.togglePick(s, 1);
+    RoundSystem.togglePick(s, 2);
+    expect(s.roundPhase).toBe('select');
+    RoundSystem.toggleSelect(s, 0);
+    RoundSystem.toggleSelect(s, 1);
+    RoundSystem.confirmSelection(s);
+    expect(s.roundPhase).toBe('resolve');
+    // Mindestens 2 Truppen pro Karte × 2 Karten × 2 Seiten.
+    expect(s.units.length).toBeGreaterThanOrEqual(8);
   });
 
-  it('spielt die teuerste leistbare Karte ohne Combo-Optionen', () => {
-    const billig = cardById('gebetswirker'); // Farblos/Heiler 3 Mana
-    const teuer = cardById('berserker'); // Krieg/Krieger 7 Mana — anderes Color+Class als Heiler
-    const state = createCombatState([], [], mulberry32(1));
-    const choice = AiController.pickBest(
-      [
-        { card: billig, idx: 0 },
-        { card: teuer, idx: 1 },
-      ],
-      state,
-      'player',
-    );
-    expect(choice.card.id).toBe('berserker');
+  it('applyLevelUp hebt die Gegner-Stufe um 1', () => {
+    const s = createCombatState([], [entry('grabwaechter')], mulberry32(3));
+    const before = s.enemy.level;
+    AiController.applyLevelUp(s, 'enemy');
+    expect(s.enemy.level).toBe(before + 1);
   });
 });

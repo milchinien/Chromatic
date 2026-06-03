@@ -187,6 +187,9 @@ export const MainMenu: Screen = (host, ctx) => {
       resetPerkSelections();
       setCurrentRun(createRunState(Date.now() & 0xffffffff));
       setActiveEncounter(null);
+      // Vor der Weltkarte: Boss-Auswahl bestimmt die Akt-Farbe.
+      ctx.go('bossselect');
+      return;
     }
     if (it.screen) {
       ctx.go(it.screen);

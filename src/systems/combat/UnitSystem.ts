@@ -34,11 +34,19 @@ const LANE_Y_FRAC: Record<Card['class'], number> = {
 };
 
 export const UnitSystem = {
-  spawn(state: CombatState, card: Card, side: Side, atX?: number, atY?: number): Unit {
+  spawn(
+    state: CombatState,
+    card: Card,
+    side: Side,
+    atX?: number,
+    atY?: number,
+    statsOverride?: import('../../domain/Card').UnitStats,
+  ): Unit {
+    const baseStats = statsOverride ? { ...statsOverride } : { ...card.stats };
     const spawnX = atX ?? (side === 'player' ? PLAYER_BASE_X + UNIT_RADIUS : ENEMY_BASE_X - UNIT_RADIUS);
     const laneCenter = (LANE_Y_FRAC[card.class] ?? 0.5) * FIELD_HEIGHT;
     // Kleiner Jitter um die Lane, damit gestapelte Units nicht 1:1 aufeinander spawnen.
-    const jitter = (state.rng() - 0.5) * Math.min(SPAWN_LANE_JITTER, 24);
+    const jitter = (state.rng() - 0.5) * SPAWN_LANE_JITTER;
     const spawnY = atY ?? Math.max(UNIT_RADIUS, Math.min(FIELD_HEIGHT - UNIT_RADIUS, laneCenter + jitter));
     const unit: Unit = {
       id: `u${state.nextUnitId++}`,
@@ -46,9 +54,9 @@ export const UnitSystem = {
       side,
       x: spawnX,
       y: spawnY,
-      baseStats: { ...card.stats },
+      baseStats,
       buffs: {},
-      currentHp: card.stats.hp,
+      currentHp: baseStats.hp,
       target: null,
       attackCooldown: 0,
       alive: true,
@@ -190,7 +198,7 @@ export const UnitSystem = {
     // 4) Pending Spawns (z.B. Nekromant-Skelett) abarbeiten
     if (state.pendingSpawns.length > 0) {
       const pending = state.pendingSpawns.splice(0, state.pendingSpawns.length);
-      for (const p of pending) UnitSystem.spawn(state, p.card, p.side, p.x, p.y);
+      for (const p of pending) UnitSystem.spawn(state, p.card, p.side, p.x, p.y, p.stats);
     }
 
     // 5) Tote rauswerfen, nachdem die Tod-Animation abgelaufen ist.

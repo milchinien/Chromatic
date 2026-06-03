@@ -1,4 +1,11 @@
-import type { Card } from './Card';
+import type { Card, Color } from './Card';
+
+/** Eine Deck-Karte mit ihrem aktuellen Upgrade-Level. Level 1 = unupgegradet.
+ *  Combat rollt daraus Truppenzahl + skalierte Stats. */
+export interface DeckEntry {
+  readonly card: Card;
+  readonly level: number;
+}
 
 export type NodeType = 'start' | 'combat_normal' | 'combat_hard' | 'shop' | 'treasure' | 'perk' | 'boss';
 
@@ -56,8 +63,13 @@ export interface Perk {
 export interface RunState {
   seed: number;
   actNumber: number;
+  /** Farbe des aktuellen Akts — bestimmt über die Boss-Auswahl. Alle Gegner
+   *  des Akts ziehen nur Karten dieser Farbe. */
+  actColor: Color;
   coins: number;
   deck: Card[];
+  /** Upgrade-Level je Karten-ID (Default 1). Deck wächst nie — nur Upgrades. */
+  cardLevels: Record<string, number>;
   activePerks: Perk[];
   map: ActMap;
   currentNodeId: string;

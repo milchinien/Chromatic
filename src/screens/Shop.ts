@@ -1,25 +1,11 @@
 import type { Screen } from '../router';
 import type { Card } from '../domain/Card';
-import { addCardToDeck, addCoins, markNodeVisited } from '../systems/run/RunState';
+import { addCoins, cardLevel, markNodeVisited, upgradeCard } from '../systems/run/RunState';
 import { getCurrentRun } from '../systems/run/currentRun';
-import { getRandomDrops, shopPool, shopPriceOf } from '../systems/data/dropPool';
-import { mulberry32 } from '../systems/rng';
+import { leveledStats, troopRangeFor, upgradeCostFor } from '../systems/data/balance';
 import { renderCardView } from '../ui/CardView';
 import { sfx } from '../systems/audio';
 import { BG, bgUrl } from '../ui/backgrounds';
-
-const NUM_OFFERS = 4;
-
-// Per-Knoten gemerkte Käufe, damit Wiederbetreten kein Doppelkauf erlaubt.
-// (Aktueller Welt-Karten-Flow geht zwar nur vorwärts, aber der Plan verlangt
-// das Verhalten explizit — hier als Singleton hinterlegt.)
-const purchasedByNode = new Map<string, Set<string>>();
-
-const seedFromNodeId = (runSeed: number, nodeId: string): number => {
-  let h = runSeed >>> 0;
-  for (let i = 0; i < nodeId.length; i++) h = ((h * 31) ^ nodeId.charCodeAt(i)) >>> 0;
-  return h;
-};
 
 const colorLabel: Record<Card['color'], string> = {
   natur: 'Natur',
@@ -36,6 +22,8 @@ const classLabel: Record<Card['class'], string> = {
   heiler: 'Heiler',
 };
 
+/** Shop: KAUF entfällt. Der Spieler kann seine eigenen Deck-Karten UPGRADEN
+ *  (Coins). Ein Upgrade skaliert Stats UND Truppen-Range; Kosten steigen je Level. */
 export const Shop: Screen = (host, ctx) => {
   const run = getCurrentRun();
   if (!run) {
@@ -44,16 +32,12 @@ export const Shop: Screen = (host, ctx) => {
     return;
   }
 
-  const nodeId = run.currentNodeId;
-  const rng = mulberry32(seedFromNodeId(run.seed, nodeId));
-  const offers = getRandomDrops(shopPool, NUM_OFFERS, rng);
-  let purchased = purchasedByNode.get(nodeId);
-  if (!purchased) {
-    purchased = new Set<string>();
-    purchasedByNode.set(nodeId, purchased);
-  }
+  // Eindeutige Deck-Karten (Deck kann Duplikate enthalten, Upgrade gilt per ID).
+  const seen = new Set<string>();
+  const offers: Card[] = [];
+  for (const c of run.deck) if (!seen.has(c.id)) { seen.add(c.id); offers.push(c); }
 
-  let selectedIdx = -1;
+  let selectedIdx = 0;
 
   host.innerHTML = `
     <div class="cm-fit"><div class="cm-screen" style="background-image:${bgUrl(BG.shop!)}; background-size:cover; background-position:center;">
@@ -61,7 +45,7 @@ export const Shop: Screen = (host, ctx) => {
         <div class="cm-hud-left">
           <button class="cm-btn cm-btn--ghost" data-action="leave" style="padding:6px 10px;">◀ Verlassen</button>
           <div class="cm-act">
-            <span class="cm-act-label">AKT 0${run.actNumber} · MARKT</span>
+            <span class="cm-act-label">AKT 0${run.actNumber} · SCHMIEDE</span>
             <span class="cm-act-name">Krämerin Vey</span>
           </div>
         </div>
@@ -80,21 +64,17 @@ export const Shop: Screen = (host, ctx) => {
       </div>
 
       <div style="position:absolute; inset:96px 56px 80px 56px; display:grid; grid-template-columns: 1fr 360px; gap:32px;">
-        <!-- Karten + Buy-Bar -->
-        <div style="display:flex; flex-direction:column; gap:18px;">
+        <div style="display:flex; flex-direction:column; gap:18px; overflow:auto;">
           <div style="display:flex; flex-direction:column; gap:4px;">
-            <span class="cm-label">Angebot · wechselt pro Raum</span>
-            <h2 class="cm-title" style="margin:0; font-size:24px; color:var(--ink);">Karten zum Verkauf</h2>
+            <span class="cm-label">Dein Deck · Karten upgraden</span>
+            <h2 class="cm-title" style="margin:0; font-size:24px; color:var(--ink);">Karten verbessern</h2>
           </div>
-          <div data-slot="offers" style="display:grid; grid-template-columns: repeat(${NUM_OFFERS}, 1fr); gap:14px; align-items:end;"></div>
+          <div data-slot="offers" style="display:grid; grid-template-columns: repeat(5, 1fr); gap:14px; align-items:end;"></div>
         </div>
 
-        <!-- Info-Panel -->
         <div data-slot="info-panel" style="background:linear-gradient(180deg, var(--surface-2), var(--surface)); border:1px solid var(--line-hi); border-radius:4px; padding:18px; display:flex; flex-direction:column; gap:14px;">
-          <div class="cm-label">Karten-Detail</div>
-          <div data-slot="info-content" style="font-family:'IBM Plex Sans', sans-serif; font-size:13px; color:var(--ink-dim); min-height:280px; display:flex; align-items:center; justify-content:center; text-align:center;">
-            Hover über eine Karte für Details.
-          </div>
+          <div class="cm-label">Upgrade-Detail</div>
+          <div data-slot="info-content" style="font-family:'IBM Plex Sans', sans-serif; font-size:13px; color:var(--ink-dim); min-height:280px;"></div>
         </div>
       </div>
     </div></div>
@@ -114,60 +94,54 @@ export const Shop: Screen = (host, ctx) => {
     const card = offers[idx];
     const info = $('info-content');
     if (!card) {
-      info.innerHTML = 'Hover über eine Karte für Details.';
-      info.style.alignItems = 'center';
-      info.style.justifyContent = 'center';
-      info.style.textAlign = 'center';
+      info.innerHTML = 'Keine Karten.';
       return;
     }
-    info.style.alignItems = 'stretch';
-    info.style.justifyContent = 'flex-start';
-    info.style.textAlign = 'left';
-    const price = shopPriceOf(card);
-    const owned = run.deck.filter((c) => c.id === card.id).length;
-    const isPurchased = purchased!.has(card.id);
-    const affordable = run.coins >= price;
+    const level = cardLevel(run, card.id);
+    const cost = upgradeCostFor(level);
+    const affordable = run.coins >= cost;
+    const cur = leveledStats(card.stats, level);
+    const next = leveledStats(card.stats, level + 1);
+    const tNow = troopRangeFor(card.manaCost, level);
+    const tNext = troopRangeFor(card.manaCost, level + 1);
+    const arrow = (a: number, b: number): string =>
+      `${a}${b !== a ? ` <span style="color:var(--c-natur);">→ ${b}</span>` : ''}`;
     info.innerHTML = `
       <div style="display:flex; flex-direction:column; gap:10px;">
         <h3 class="cm-display" style="margin:0; font-size:22px; color:var(--ink);">${card.name}</h3>
-        <span class="cm-label">${colorLabel[card.color]} · ${classLabel[card.class]}</span>
+        <span class="cm-label">${colorLabel[card.color]} · ${classLabel[card.class]} · Stufe ${level}</span>
         <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;">
           <div style="background:var(--bg-2); border:1px solid var(--line-soft); padding:6px 8px;">
-            <div class="cm-label" style="font-size:9px;">Mana</div>
-            <div style="font-family:'JetBrains Mono', monospace; font-size:18px; color:var(--mana);">${card.manaCost}</div>
-          </div>
-          <div style="background:var(--bg-2); border:1px solid var(--line-soft); padding:6px 8px;">
             <div class="cm-label" style="font-size:9px;">Damage</div>
-            <div style="font-family:'JetBrains Mono', monospace; font-size:18px; color:var(--c-krieg);">${card.stats.damage}</div>
+            <div style="font-family:'JetBrains Mono', monospace; font-size:16px; color:var(--c-krieg);">${arrow(cur.damage, next.damage)}</div>
           </div>
           <div style="background:var(--bg-2); border:1px solid var(--line-soft); padding:6px 8px;">
             <div class="cm-label" style="font-size:9px;">HP</div>
-            <div style="font-family:'JetBrains Mono', monospace; font-size:18px; color:var(--c-natur);">${card.stats.hp}</div>
+            <div style="font-family:'JetBrains Mono', monospace; font-size:16px; color:var(--c-natur);">${arrow(cur.hp, next.hp)}</div>
+          </div>
+          <div style="background:var(--bg-2); border:1px solid var(--line-soft); padding:6px 8px;">
+            <div class="cm-label" style="font-size:9px;">Truppen</div>
+            <div style="font-family:'JetBrains Mono', monospace; font-size:16px; color:var(--gold-hi);">${tNow.min}-${tNow.max} <span style="color:var(--c-natur);">→ ${tNext.min}-${tNext.max}</span></div>
           </div>
         </div>
-        ${card.description ? `<div style="background:var(--bg-2); border:1px solid var(--line-soft); padding:8px 10px;"><div class="cm-label" style="font-size:9px;">◆ Passiv</div><div style="font-size:12px; margin-top:4px; color:var(--ink);">${card.description}</div></div>` : ''}
         <div style="display:flex; align-items:center; justify-content:space-between; margin-top:8px;">
-          <span class="cm-label">Du besitzt: ${owned}×</span>
-          <span style="font-family:'JetBrains Mono', monospace; font-size:18px; color:${affordable ? 'var(--gold-hi)' : 'var(--c-krieg)'};">${price} ⦿</span>
+          <span class="cm-label">Upgrade auf Stufe ${level + 1}</span>
+          <span style="font-family:'JetBrains Mono', monospace; font-size:18px; color:${affordable ? 'var(--gold-hi)' : 'var(--c-krieg)'};">${cost} ⦿</span>
         </div>
-        <button class="cm-btn cm-btn--gold" data-action="buy" style="margin-top:6px;" ${isPurchased || !affordable ? 'disabled' : ''}>${isPurchased ? 'Bereits gekauft' : affordable ? `Kaufen · ${price}` : 'Zu wenig Coins'}</button>
+        <button class="cm-btn cm-btn--gold" data-action="upgrade" style="margin-top:6px;" ${affordable ? '' : 'disabled'}>${affordable ? `Upgraden · ${cost}` : 'Zu wenig Coins'}</button>
       </div>
     `;
-    const buyBtn = info.querySelector<HTMLButtonElement>('[data-action="buy"]');
-    if (buyBtn && !buyBtn.disabled) {
-      buyBtn.addEventListener('click', () => onBuy(idx));
-    }
+    const btn = info.querySelector<HTMLButtonElement>('[data-action="upgrade"]');
+    if (btn && !btn.disabled) btn.addEventListener('click', () => onUpgrade(idx));
   };
 
-  const onBuy = (idx: number): void => {
+  const onUpgrade = (idx: number): void => {
     const card = offers[idx];
     if (!card) return;
-    if (purchased!.has(card.id)) return;
-    const price = shopPriceOf(card);
-    if (run.coins < price) return;
-    addCoins(run, -price);
-    addCardToDeck(run, card);
-    purchased!.add(card.id);
+    const cost = upgradeCostFor(cardLevel(run, card.id));
+    if (run.coins < cost) return;
+    addCoins(run, -cost);
+    upgradeCard(run, card.id);
     sfx.coin();
     updateCoins();
     renderOffers();
@@ -179,61 +153,44 @@ export const Shop: Screen = (host, ctx) => {
     offersHost.replaceChildren();
     offers.forEach((card, idx) => {
       const wrap = document.createElement('div');
-      wrap.style.cssText = 'display:flex; flex-direction:column; gap:8px; align-items:center;';
-      const isPurchased = purchased!.has(card.id);
-      const affordable = run.coins >= shopPriceOf(card);
+      wrap.style.cssText = 'display:flex; flex-direction:column; gap:6px; align-items:center;';
+      const level = cardLevel(run, card.id);
       const view = renderCardView({
         card,
-        affordable: !isPurchased && affordable,
-        size: 'md',
+        affordable: true,
+        size: 'sm',
+        selected: idx === selectedIdx,
         onClick: () => {
           selectedIdx = idx;
+          renderOffers();
           renderInfo(idx);
-          highlightSelected();
         },
       });
-      if (isPurchased) view.style.filter = 'grayscale(1)';
       const tag = document.createElement('div');
       tag.style.cssText = `
-        display:flex; align-items:center; gap:6px; padding:4px 10px;
-        background:${isPurchased ? 'var(--surface)' : 'linear-gradient(180deg, var(--surface-2), var(--surface))'};
-        border:1px solid ${isPurchased ? 'var(--line)' : 'var(--line-hi)'};
-        font-family:'JetBrains Mono', monospace; font-size:12px;
-        color:${isPurchased ? 'var(--ink-mute)' : 'var(--gold-hi)'};
-        border-radius:2px;
+        display:flex; align-items:center; gap:6px; padding:3px 8px;
+        background:linear-gradient(180deg, var(--surface-2), var(--surface));
+        border:1px solid var(--line-hi); font-family:'JetBrains Mono', monospace;
+        font-size:11px; color:var(--gold-hi); border-radius:2px;
       `;
-      tag.textContent = isPurchased ? 'GEKAUFT' : `${shopPriceOf(card)} ⦿`;
+      tag.textContent = `Lv ${level} · ${upgradeCostFor(level)} ⦿`;
+      view.addEventListener('mouseenter', () => renderInfo(idx));
       wrap.appendChild(view);
       wrap.appendChild(tag);
-      // Hover-Info ohne Auswahl
-      view.addEventListener('mouseenter', () => renderInfo(idx));
       offersHost.appendChild(wrap);
-    });
-    highlightSelected();
-  };
-
-  const highlightSelected = (): void => {
-    const offersHost = $('offers');
-    Array.from(offersHost.children).forEach((wrap, i) => {
-      const view = wrap.firstElementChild as HTMLElement | null;
-      if (!view) return;
-      if (i === selectedIdx) view.classList.add('cm-card--selected');
-      else view.classList.remove('cm-card--selected');
     });
   };
 
   renderOffers();
-  if (offers.length > 0) renderInfo(0);
+  if (offers.length > 0) renderInfo(selectedIdx);
 
   host.querySelector<HTMLButtonElement>('[data-action="leave"]')!.addEventListener('click', () => {
-    // Shop-Verlassen schließt den Welt-Knoten ab.
     markNodeVisited(run, run.currentNodeId);
     ctx.go('worldmap');
   });
-
 };
 
 // Helper für externe Resets (z.B. neuer Run nach Game Over).
 export const resetShopPurchases = (): void => {
-  purchasedByNode.clear();
+  // Keine per-Node-Käufe mehr (Upgrades sind coin-limitiert) — No-op.
 };

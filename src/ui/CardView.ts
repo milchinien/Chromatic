@@ -13,6 +13,12 @@ export interface CardViewOptions {
   affordable: boolean;
   onClick?: () => void;
   size?: 'sm' | 'md';
+  /** Truppenzahl-Badge (rundenbasiertes Combat) — groß auf der Karte. */
+  troops?: number;
+  /** Ausgewählt-Highlight (Pick-/Select-Phase). */
+  selected?: boolean;
+  /** Verdeckte Karten-Rückseite (die 5 zur Blind-Auswahl). */
+  faceDown?: boolean;
 }
 
 // Klassen-Reihe in den Datei-Namen: r1 = Krieger (Mana 7) ... r5 = Heiler (Mana 3).
@@ -50,31 +56,60 @@ const cardImageUrl = (card: Card): string | undefined => {
  * Werte, damit Combat-Logik konsistent bleibt.
  */
 export const renderCardView = (opts: CardViewOptions): HTMLElement => {
-  const { card, affordable, size = 'md' } = opts;
+  const { card, affordable, size = 'md', troops, selected = false, faceDown = false } = opts;
   // Aspect-Ratio matched die Quell-PNGs (174×304 ≈ 0.572 w/h), damit `cover`
   // weder Top (Mana/Name) noch Bottom (Farb-/Klassen-Tag) abschneidet.
   const dims = size === 'md' ? { w: 150, h: 262 } : { w: 110, h: 192 };
 
   const url = cardImageUrl(card);
+  const back =
+    'repeating-linear-gradient(45deg, #2a1d10, #2a1d10 8px, #34240f 8px, #34240f 16px)';
 
   const el = document.createElement('button');
-  el.className = `cm-card cm-card-view${affordable ? '' : ' cm-card-view--locked'}`;
+  el.className = `cm-card cm-card-view${affordable ? '' : ' cm-card-view--locked'}${selected ? ' cm-card-view--selected' : ''}`;
   el.dataset.cardId = card.id;
-  el.setAttribute('aria-label', `${card.name} · ${card.manaCost} Mana`);
+  el.setAttribute('aria-label', faceDown ? 'Verdeckte Karte' : `${card.name}${troops !== undefined ? ` · ${troops} Truppen` : ''}`);
+  const selRing = selected ? 'box-shadow: 0 0 0 3px var(--gold-hi), 0 8px 18px rgba(0,0,0,0.65);' : 'box-shadow: 0 4px 8px rgba(0,0,0,0.55);';
   el.style.cssText = `
     position: relative;
     width: ${dims.w}px;
     height: ${dims.h}px;
     padding: 0;
     border: 0;
-    background: ${url ? `url(${url}) center/cover no-repeat` : 'var(--surface)'};
+    background: ${faceDown ? back : url ? `url(${url}) center/cover no-repeat` : 'var(--surface)'};
     border-radius: 6px;
     cursor: ${affordable ? 'pointer' : 'not-allowed'};
     opacity: ${affordable ? '1' : '0.5'};
     filter: ${affordable ? 'none' : 'grayscale(0.5)'};
+    transform: ${selected ? 'translateY(-6px)' : 'translateY(0)'};
     transition: transform 120ms, filter 120ms, box-shadow 120ms;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.55);
+    ${selRing}
   `;
+
+  // Verdeckte Rückseite: zentrales Glyph statt Karteninhalt.
+  if (faceDown) {
+    const q = document.createElement('div');
+    q.textContent = '✶';
+    q.style.cssText = `
+      position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+      font-size:${size === 'md' ? 48 : 36}px; color: var(--gold); opacity:0.55;
+    `;
+    el.appendChild(q);
+  }
+
+  // Truppen-Badge (nur aufgedeckte Karten).
+  if (!faceDown && troops !== undefined) {
+    const badge = document.createElement('div');
+    badge.textContent = `×${troops}`;
+    badge.style.cssText = `
+      position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
+      min-width:46px; padding:2px 10px; text-align:center;
+      font-family:'JetBrains Mono', monospace; font-weight:700; font-size:18px;
+      color:#fff; background:rgba(10,7,4,0.82); border:1px solid var(--gold-hi);
+      border-radius:12px; letter-spacing:0.04em; text-shadow:0 1px 2px #000;
+    `;
+    el.appendChild(badge);
+  }
 
   if (opts.onClick && affordable) {
     el.addEventListener('click', (e) => {
@@ -82,14 +117,12 @@ export const renderCardView = (opts: CardViewOptions): HTMLElement => {
       opts.onClick!();
     });
     el.addEventListener('mouseenter', () => {
-      el.style.transform = 'translateY(-3px)';
+      if (!selected) el.style.transform = 'translateY(-3px)';
       el.style.filter = 'brightness(1.1)';
-      el.style.boxShadow = '0 8px 18px rgba(0,0,0,0.65), 0 0 12px rgba(214,169,85,0.35)';
     });
     el.addEventListener('mouseleave', () => {
-      el.style.transform = 'translateY(0)';
+      el.style.transform = selected ? 'translateY(-6px)' : 'translateY(0)';
       el.style.filter = 'none';
-      el.style.boxShadow = '0 4px 8px rgba(0,0,0,0.55)';
     });
   }
   return el;

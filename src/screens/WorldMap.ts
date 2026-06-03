@@ -160,7 +160,7 @@ export const WorldMap: Screen = (host, ctx) => {
 
     // Boss-Welt-Knoten überspringt die Sub-Map und startet direkt den Boss-Combat.
     if (node.type === 'boss') {
-      const enc = encounterForNodeType('boss', run.actNumber);
+      const enc = encounterForNodeType('boss', run.actNumber, run.actColor);
       if (enc) {
         setActiveEncounter(enc);
         ctx.go('combat');

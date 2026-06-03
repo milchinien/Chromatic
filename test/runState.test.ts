@@ -1,15 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import {
-  addCardToDeck,
   addCoins,
+  cardLevel,
   createRunState,
   damageBase,
   healBase,
   reachableFromCurrent,
+  setActColor,
   setCurrentNode,
   STARTING_COINS,
+  upgradeCard,
 } from '../src/systems/run/RunState';
-import { cardById } from '../src/systems/data/cards';
 
 describe('RunState', () => {
   it('createRunState liefert frischen Run mit Default-Werten', () => {
@@ -30,12 +31,19 @@ describe('RunState', () => {
     expect(s.coins).toBe(0);
   });
 
-  it('addCardToDeck fügt Karte hinzu', () => {
+  it('upgradeCard erhöht Level ohne das Deck zu vergrößern', () => {
     const s = createRunState(1);
+    const id = s.deck[0]!.id;
     const before = s.deck.length;
-    addCardToDeck(s, cardById('zeitweiser'));
-    expect(s.deck.length).toBe(before + 1);
-    expect(s.deck.at(-1)?.id).toBe('zeitweiser');
+    upgradeCard(s, id);
+    expect(cardLevel(s, id)).toBe(2);
+    expect(s.deck.length).toBe(before);
+  });
+
+  it('setActColor setzt die Akt-Farbe', () => {
+    const s = createRunState(1);
+    setActColor(s, 'stein');
+    expect(s.actColor).toBe('stein');
   });
 
   it('damageBase und healBase respektieren Grenzen', () => {

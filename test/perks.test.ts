@@ -14,25 +14,26 @@ const makeSide = (): SideState => ({
   mana: 20,
   maxMana: 20,
   manaRegen: 1,
-  hand: [],
-  handSize: 3,
-  drawIntervalSec: 4,
-  drawTimer: 0,
   deck: [],
+  drawOptions: [],
+  pickedIdx: [],
+  picked: [],
+  selectedIdx: [],
   exp: 0,
   level: 1,
-  aiDecisionCooldown: 0,
-  aiDecisionIntervalSec: 1.5,
   baseHpRegen: 0,
   globalDamageBonus: 0,
+  troopBonus: 0,
 });
 
 const makeRun = (): RunState =>
   ({
     seed: 1,
     actNumber: 1,
+    actColor: 'natur',
     coins: 550,
     deck: [],
+    cardLevels: {},
     activePerks: [],
     map: { nodes: [], startNodeId: '', bossNodeId: '' },
     currentNodeId: '',
@@ -51,18 +52,16 @@ const dataPerk = (id: string): Perk => {
 };
 
 describe('Perks — onCombatMount (jedes Combat)', () => {
-  it('mana_regen_x2 verdoppelt manaRegen', () => {
+  it('mana_regen_x2 (umgewidmet) erhöht troopBonus um 2', () => {
     const s = makeSide();
     applyPerkOnCombatMount(dataPerk('mana_regen_x2'), s);
-    expect(s.manaRegen).toBe(2);
+    expect(s.troopBonus).toBe(2);
   });
 
-  it('max_mana_plus_20 erhöht maxMana + füllt 20 mana auf', () => {
+  it('max_mana_plus_20 (umgewidmet) erhöht baseHpRegen um 1', () => {
     const s = makeSide();
-    s.mana = 10;
     applyPerkOnCombatMount(dataPerk('max_mana_plus_20'), s);
-    expect(s.maxMana).toBe(40);
-    expect(s.mana).toBe(30);
+    expect(s.baseHpRegen).toBe(1);
   });
 
   it('hp_regen_plus_1 erhöht baseHpRegen um 1', () => {
@@ -77,10 +76,10 @@ describe('Perks — onCombatMount (jedes Combat)', () => {
     expect(s.globalDamageBonus).toBe(5);
   });
 
-  it('extra_hand_card erhöht handSize um 1', () => {
+  it('extra_hand_card (umgewidmet) erhöht globalDamageBonus um 3', () => {
     const s = makeSide();
     applyPerkOnCombatMount(dataPerk('extra_hand_card'), s);
-    expect(s.handSize).toBe(4);
+    expect(s.globalDamageBonus).toBe(3);
   });
 
   it('base_hp_plus_20 hat KEINEN onCombatMount — SideState unverändert', () => {
@@ -119,11 +118,11 @@ describe('Perks — onChoose (einmalig bei Auswahl)', () => {
 });
 
 describe('Perks — Stacking (re-apply auf jedem Combat)', () => {
-  it('max_mana_plus_20 zweimal angewendet → +40 (auf frischen Side beider Combats)', () => {
+  it('max_mana_plus_20 zweimal → baseHpRegen +2 (frischer Side je Combat)', () => {
     const s1 = makeSide();
     applyPerkOnCombatMount(dataPerk('max_mana_plus_20'), s1);
     applyPerkOnCombatMount(dataPerk('max_mana_plus_20'), s1);
-    expect(s1.maxMana).toBe(60);
+    expect(s1.baseHpRegen).toBe(2);
   });
 
   it('base_hp_plus_20 onChoose zweimal → run.maxBaseHp +40 (gewollt)', () => {
@@ -133,10 +132,9 @@ describe('Perks — Stacking (re-apply auf jedem Combat)', () => {
     expect(r.maxBaseHp).toBe(140);
   });
 
-  it('REGRESSION: base_hp_plus_20 onCombatMount mehrfach → Run-State unverändert (kein Doppel-Apply-Bug)', () => {
+  it('REGRESSION: base_hp_plus_20 onCombatMount mehrfach → Run-State unverändert', () => {
     const r = makeRun();
     applyPerkOnChoose(dataPerk('base_hp_plus_20'), r);
-    // Simuliere 5 Combats — onCombatMount darf Run-State NIE wieder anfassen.
     const beforeRun = JSON.stringify({ baseHp: r.baseHp, maxBaseHp: r.maxBaseHp });
     for (let i = 0; i < 5; i++) {
       const s = makeSide();
