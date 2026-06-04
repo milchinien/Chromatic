@@ -97,16 +97,23 @@ export const renderCardView = (opts: CardViewOptions): HTMLElement => {
     el.appendChild(q);
   }
 
-  // Truppen-Badge (nur aufgedeckte Karten).
+  // Truppen-Badge (nur aufgedeckte Karten). Sitzt oben links und überdeckt die
+  // ins PNG eingebrannte Mana-Zahl — Mana ist im rundenbasierten Combat nur noch
+  // Platzhalter, die Truppenzahl ist die relevante Information.
   if (!faceDown && troops !== undefined) {
+    const d = Math.round(dims.w * 0.27); // Durchmesser ~ deckt die Mana-Scheibe
     const badge = document.createElement('div');
     badge.textContent = `×${troops}`;
     badge.style.cssText = `
-      position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
-      min-width:46px; padding:2px 10px; text-align:center;
-      font-family:'JetBrains Mono', monospace; font-weight:700; font-size:18px;
-      color:#fff; background:rgba(10,7,4,0.82); border:1px solid var(--gold-hi);
-      border-radius:12px; letter-spacing:0.04em; text-shadow:0 1px 2px #000;
+      position:absolute; top:${Math.round(dims.w * 0.045)}px; left:${Math.round(dims.w * 0.045)}px;
+      width:${d}px; height:${d}px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      font-family:'JetBrains Mono', monospace; font-weight:700;
+      font-size:${Math.round(d * 0.38)}px; line-height:1;
+      color:#fff; background:rgba(10,7,4,0.92);
+      border:2px solid var(--gold-hi);
+      box-shadow:0 0 8px rgba(0,0,0,0.6), inset 0 0 6px rgba(214,169,85,0.25);
+      letter-spacing:-0.02em; text-shadow:0 1px 2px #000;
     `;
     el.appendChild(badge);
   }
