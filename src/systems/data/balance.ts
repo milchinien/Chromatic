@@ -1,7 +1,7 @@
 // Zentrale Tuning-Konstanten. KEINE Magic-Numbers im Combat-Code — alles hier.
 // Iteration im Playtest passiert ausschließlich hier.
 
-import type { UnitStats } from '../../domain/Card';
+import type { CardClass, Color, UnitStats } from '../../domain/Card';
 import type { Rng } from '../rng';
 
 // --- Mana ist seit dem Runden-Redesign nur noch Platzhalter-Ressource ---
@@ -93,3 +93,29 @@ export const upgradeCostFor = (level: number): number => 60 + 40 * level;
 // Truppen-Stacks können groß werden (bis ~20 Units/Karte) → kleinerer Radius
 // für gute Lesbarkeit auf dem schmalen Feld.
 export const STACK_UNIT_RADIUS = 9;
+
+// =====================================================================
+// COMBO (Poker-Warlords-Stil): Teilen die 2 gespielten Karten Farbe und/oder
+// Klasse, gibt es einen ARMEE-WEITEN Bonus auf ALLE eigenen Truppen.
+// Werte tunebar. Farblos hat keinen Color-Combo (löst nicht aus).
+// =====================================================================
+export const COLOR_ARMY_BONUS: Record<Color, Partial<UnitStats>> = {
+  krieg: { damage: 4 },
+  stein: { hp: 8 },
+  natur: { hp: 5 },
+  untot: { damage: 4 },
+  farblos: {},
+};
+export const CLASS_ARMY_BONUS: Record<CardClass, Partial<UnitStats>> = {
+  krieger: { damage: 4 },
+  festung: { hp: 8 },
+  reittier: { speed: 12 },
+  magier: { damage: 3 },
+  heiler: { hp: 5 },
+};
+
+// Front-/Hintergrundlinie: Spawn-Position relativ zur eigenen Base.
+// Front rückt weiter Richtung Feldmitte vor, Hinten bleibt nah an der Base.
+export const FRONT_LINE_OFFSET = 130; // px vor die Base (Richtung Gegner)
+export const BACK_LINE_OFFSET = 8; // px direkt vor der Base
+export const LINE_SPAWN_SPREAD = 56; // zufällige X-Streuung pro Stack

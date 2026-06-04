@@ -48,6 +48,9 @@ export interface SideState {
   globalDamageBonus: number;
   /** Zusätzliche Truppen pro gespielter Karte (Level-Up-Vorteil). */
   troopBonus: number;
+  /** Armee-weiter Combo-Bonus dieser Runde (aus geteilter Farbe/Klasse der 2
+   *  gespielten Karten). Wird beim Spawn auf alle eigenen Units addiert. */
+  comboBuff: Partial<UnitStats>;
 }
 
 export type CombatStatus = 'running' | 'paused' | 'levelup' | 'victory' | 'defeat';
@@ -105,8 +108,6 @@ export interface CombatState {
   player: SideState;
   enemy: SideState;
   units: Unit[];
-  /** Wird vom ComboAuraSystem als dirty markiert bei Spawn/Tod. */
-  auraDirty: boolean;
   rng: Rng;
   log: EventLogEntry[];
   nextUnitId: number;
@@ -133,6 +134,7 @@ const initialSide = (deck: DeckEntry[]): SideState => ({
   baseHpRegen: 0,
   globalDamageBonus: 0,
   troopBonus: 0,
+  comboBuff: {},
 });
 
 export const createCombatState = (
@@ -153,7 +155,6 @@ export const createCombatState = (
     player: initialSide(playerDeck),
     enemy: initialSide(enemyDeck),
     units: [],
-    auraDirty: false,
     rng,
     log: [],
     nextUnitId: 1,

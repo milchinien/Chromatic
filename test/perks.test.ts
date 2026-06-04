@@ -24,6 +24,7 @@ const makeSide = (): SideState => ({
   baseHpRegen: 0,
   globalDamageBonus: 0,
   troopBonus: 0,
+  comboBuff: {},
 });
 
 const makeRun = (): RunState =>

@@ -19,6 +19,7 @@ const makeSide = (overrides: Partial<SideState> = {}): SideState => ({
   baseHpRegen: 0,
   globalDamageBonus: 0,
   troopBonus: 0,
+  comboBuff: {},
   ...overrides,
 });
 

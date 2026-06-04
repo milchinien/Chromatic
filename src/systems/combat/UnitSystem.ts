@@ -14,8 +14,7 @@ import {
   SPAWN_LANE_JITTER,
   UNIT_RADIUS,
 } from '../data/balance';
-import { ComboAuraSystem } from './ComboAuraSystem';
-import { type CombatState, getSide, logEvent } from './CombatState';
+import { type CombatState, getSide } from './CombatState';
 
 const dirInto = (side: Side): 1 | -1 => (side === 'player' ? 1 : -1);
 const enemySide = (side: Side): Side => (side === 'player' ? 'enemy' : 'player');
@@ -43,6 +42,12 @@ export const UnitSystem = {
     statsOverride?: import('../../domain/Card').UnitStats,
   ): Unit {
     const baseStats = statsOverride ? { ...statsOverride } : { ...card.stats };
+    // Armee-weiter Combo-Bonus dieser Runde auf die Basis-Stats addieren.
+    const combo = getSide(state, side).comboBuff;
+    baseStats.damage += combo.damage ?? 0;
+    baseStats.hp += combo.hp ?? 0;
+    baseStats.speed += combo.speed ?? 0;
+    baseStats.attackInterval = Math.max(0.1, baseStats.attackInterval - (combo.attackInterval ?? 0));
     const spawnX = atX ?? (side === 'player' ? PLAYER_BASE_X + UNIT_RADIUS : ENEMY_BASE_X - UNIT_RADIUS);
     const laneCenter = (LANE_Y_FRAC[card.class] ?? 0.5) * FIELD_HEIGHT;
     // Kleiner Jitter um die Lane, damit gestapelte Units nicht 1:1 aufeinander spawnen.
@@ -67,18 +72,14 @@ export const UnitSystem = {
     };
     state.units.push(unit);
     state.spawnFxQueue.push({ side, x: spawnX, y: spawnY });
-    ComboAuraSystem.markDirty(state);
     if (card.passive?.trigger === 'onSpawn') {
       // onSpawn-Passives feuern sofort einmal — Effekte wie Meteor wirken global.
       card.passive.apply(unit, state, 0);
     }
-    logEvent(state, `${side === 'player' ? '⊕' : '⊖'} ${card.name} spawnt`);
     return unit;
   },
 
   tick(state: CombatState, dt: number): void {
-    ComboAuraSystem.recomputeIfDirty(state);
-
     // FX-Timer fortschreiben (auch für gestorbene Units, damit Tod-Animation läuft).
     for (const u of state.units) {
       u.spawnAge += dt;
@@ -156,7 +157,6 @@ export const UnitSystem = {
         const own = getSide(state, u.side);
         const dmg = Math.max(1, Math.round(stats.damage + own.globalDamageBonus));
         target.baseHp = Math.max(0, target.baseHp - dmg);
-        logEvent(state, `${u.card.name} trifft Base für ${dmg}`);
         // Visuelle Effekte: Damage-Number an Base + Screen-Shake + Queue für SFX.
         const baseX = u.side === 'player' ? ENEMY_BASE_X : PLAYER_BASE_X;
         state.damageNumbers.push({
@@ -171,7 +171,6 @@ export const UnitSystem = {
         state.baseHitFxQueue.push({ side: enemySide(u.side) });
         u.alive = false;
         u.deathAge = 0;
-        ComboAuraSystem.markDirty(state);
       }
     }
 
@@ -190,8 +189,6 @@ export const UnitSystem = {
         if (u.card.passive?.trigger === 'onDeath') {
           u.card.passive.apply(u, state, 0);
         }
-        logEvent(state, `${u.card.name} stirbt`);
-        ComboAuraSystem.markDirty(state);
       }
     }
 
@@ -205,7 +202,6 @@ export const UnitSystem = {
     const expired = state.units.some((u) => !u.alive && (u.deathAge ?? 0) >= DEATH_ANIM_SEC);
     if (expired) {
       state.units = state.units.filter((u) => u.alive || (u.deathAge ?? 0) < DEATH_ANIM_SEC);
-      ComboAuraSystem.markDirty(state);
     }
   },
 };

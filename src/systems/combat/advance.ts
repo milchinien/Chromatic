@@ -1,7 +1,6 @@
 import { MAX_DT_SEC, RESOLVE_MAX_SEC } from '../data/balance';
 import { AiController } from './AiController';
 import { type CombatState } from './CombatState';
-import { ComboAuraSystem } from './ComboAuraSystem';
 import { ExpSystem, applyHpRegen } from './ExpSystem';
 import { ManaSystem } from './ManaSystem';
 import { RoundSystem } from './RoundSystem';
@@ -51,7 +50,6 @@ export const advance = (state: CombatState, dtRaw: number): void => {
     case 'resolve': {
       state.resolveTimer += dt;
       UnitSystem.tick(state, dt);
-      ComboAuraSystem.recomputeIfDirty(state);
       applyHpRegen(state, dt);
       ExpSystem.check(state);
 
