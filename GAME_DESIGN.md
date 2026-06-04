@@ -187,7 +187,8 @@ Funktion: Der Spieler verstärkt sein **festes** Deck strategisch.
 - **Links** = Spieler-Seite, Units spawnen hier und marschieren nach rechts
 - **Rechts** = Gegner-Seite, spiegelverkehrt
 - **Mitte** = Kampfzone
-- **Unten** = Handkarten + Mana-Leiste
+- **Front-/Hintergrundlinie:** Der **Front**-Stack spawnt weiter vorne (rückt zuerst vor / nimmt den Kampf auf), der **Hinten**-Stack hinter der eigenen Base (geschützt, kommt später ins Gefecht)
+- **Unten** = Karten-Auswahl der Runde + Mana-Leiste (Mana = Platzhalter)
 - **Gegner sieht deine Kartenauswahl NICHT**
 
 ### 6.3 Ziehen & Auswählen (pro Runde)
@@ -236,24 +237,25 @@ Jede Karte hat:
 - **Druide** (Natur/Magier) — 7 DMG, 12 HP — „Heilt alle befreundeten Natur-Units um 1 HP/Sek."
 - **Beserker** (Krieg/Krieger) — 15 DMG, 8 HP — „Wenn HP < 50 %, Damage ×1.5"
 
-### 6.5 Combo-System (Field-Aura-Modell)
+### 6.5 Combo-System (Allianz-Modell, „Poker Warlords"-Stil)
 
-Combos sind **persistent und aurabasiert**, kein einmaliger Spawn-Trigger:
+Die **2 gespielten Karten** bestimmen den Combo. Teilen sie ein Merkmal, gibt es einen **armee-weiten Bonus** auf **alle** eigenen Truppen dieser Runde:
 
-- **Trigger:** Jede befreundete Unit auf dem Feld gewährt ihren **Color-Buff** an alle anderen befreundeten Units derselben **Farbe** und ihren **Class-Buff** an alle derselben **Klasse**.
-- **Dynamisch:** Buffs werden bei jeder Feld-Änderung neu berechnet (Spawn, Tod). Stirbt der einzige Combo-Partner, fällt der Buff weg.
-- **Self-Exclusion:** Eine Unit gibt sich nicht selbst ihren Buff — es braucht mindestens eine zweite Unit derselben Farbe/Klasse.
-- **Stacking:** Bei N befreundeten Units gleicher Farbe gewährt jede *Andere* einen Color-Buff → der Buff einer Unit skaliert mit `(N-1) × eigener Color-Buff-Wert`. Class-Buffs analog.
-- **Farblos:** Karten ohne Farbe lösen keinen Color-Buff aus und empfangen keinen — sie sind so balanciert, dass sie auch solo stark sind.
+- **Geteilte Farbe** (Allianz, ≠ farblos) → **Color-Armee-Bonus** (pro Farbe fest definiert), z. B. Krieg → +Damage, Stein → +HP, Natur → +HP, Untot → +Damage.
+- **Geteilte Klasse** → **Class-Armee-Bonus** (pro Klasse fest definiert), z. B. Krieger → +Damage, Festung → +HP, Reittier → +Speed.
+- **Beides möglich:** Teilen die 2 Karten Farbe *und* Klasse, werden beide Boni addiert.
+- **Armee-weit:** Der Bonus wirkt auf alle eigenen Truppen (beide Stacks + später beschworene), nicht nur auf die gleichfarbigen — er wird beim Spawn fest auf die Stats gebacken.
+- **Farblos:** löst keinen Color-Bonus aus (nur ein eventueller Klassen-Bonus zählt).
+- **Pro Runde:** Der Combo-Bonus gilt nur für die laufende Runde (Feld wird danach geleert).
 
-Beispiele (Werte illustrativ, exakte Werte stehen auf den Karten):
+Beispiele:
 
-| Karte 1 | Karte 2 | Combo? | Effekt |
-|---------|---------|--------|--------|
-| Druide (Natur/Magier) | Skelett (Untot/Krieger) | NEIN | Keine Buffs |
-| Druide (Natur/Magier) | Jäger (Natur/Reittier) | JA — Farbe | Beide bekommen Color-Buff voneinander |
-| Beserker (Krieg/Krieger) | Wachposten (Krieg/Festung) | JA — Farbe | Beide bekommen Color-Buff voneinander |
-| Beserker (Krieg/Krieger) | Blutfuror (Krieg/Krieger) | JA — Farbe + Klasse | Beide bekommen Color- *und* Class-Buff |
+| Front | Hinten | Combo? | Armee-Bonus |
+|-------|--------|--------|-------------|
+| Berserker (Krieg/Krieger) | Naturheiler (Natur/Heiler) | NEIN | — |
+| Berserker (Krieg/Krieger) | Kriegsfeste (Krieg/Festung) | JA — Farbe | Krieg-Color-Bonus auf ganze Armee |
+| Berserker (Krieg/Krieger) | Waldläufer (Natur/Krieger) | JA — Klasse | Krieger-Class-Bonus auf ganze Armee |
+| Berserker (Krieg/Krieger) | Söldner (Farblos/Krieger) | JA — Klasse | Krieger-Class-Bonus (Farblos = kein Color) |
 
 ### 6.6 Combat-Flow (rundenbasiert)
 
@@ -261,8 +263,8 @@ Eine Runde durchläuft feste Phasen:
 
 1. **Banner:** Großes **„Runde N"** wird kurz eingeblendet.
 2. **Ziehen:** 5 verdeckte Karten, Spieler pickt blind 3 (siehe 6.3).
-3. **Auswählen:** Die 3 werden mit Truppenzahl aufgedeckt; Spieler wählt 2 und bestätigt. Der Gegner hat parallel schon 3 gezogen und 2 gewählt.
-4. **Gefecht (Echtzeit):** Beide Seiten deployen ihre Truppen-Stacks (Combo-Aura greift sofort, siehe 6.5). Dann läuft die Simulation:
+3. **Auswählen + Linien:** Die 3 werden mit Truppenzahl aufgedeckt; Spieler wählt 2 — **erste Wahl = Frontlinie, zweite = Hintergrundlinie** (per „Tauschen" wechselbar) — und bestätigt. Der Gegner zieht parallel 3 und wählt 2 (Combo bevorzugt, tankigere Karte = Front).
+4. **Gefecht (Echtzeit):** Beide Seiten deployen ihre Truppen-Stacks: **Front-Stack vorne** (rückt zuerst vor), **Hinten-Stack hinter der eigenen Base** (geschützt). Der **armee-weite Combo-Bonus** (siehe 6.5) wird beim Spawn angewandt. Dann läuft die Simulation:
    - **Bewegung:** Units laufen Richtung gegnerischer Base mit ihrer Speed.
    - **Targeting/Angriff:** Treffen sie Gegner, kämpfen sie im jeweiligen Angriffstakt.
    - **Tod & EXP:** Stirbt eine Unit → entfernt, EXP-Anteil wandert zum Gegner-Spieler.

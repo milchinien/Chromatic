@@ -5,6 +5,7 @@ import { advance } from '../systems/combat/advance';
 import {
   createCombatState,
   type CombatState,
+  type DrawnCard,
   logEvent,
 } from '../systems/combat/CombatState';
 import { RoundSystem } from '../systems/combat/RoundSystem';
@@ -15,7 +16,6 @@ import {
   rollAdvantages,
   type RolledAdvantage,
 } from '../systems/combat/ExpSystem';
-import { ComboAuraSystem } from '../systems/combat/ComboAuraSystem';
 import { mulberry32 } from '../systems/rng';
 import { sandboxEnemyDeck, sandboxPlayerDeck } from '../systems/data/starterDeck';
 import { getActiveEncounter, getCurrentRun, setActiveEncounter } from '../systems/run/currentRun';
@@ -54,6 +54,19 @@ import { bgUrl, combatBgForAct } from '../ui/backgrounds';
  * → 2 der 3 spielen → Echtzeit-Gefecht bis Feld leer → nächste Runde.
  * Mana ist Platzhalter (sichtbar, gated nichts). Sieg/Niederlage = Base-HP 0.
  */
+/** Combo-Hinweis für die 2 gewählten Karten (geteilte Farbe/Klasse → Armee-Buff). */
+const comboHintText = (picked: DrawnCard[], sel: number[]): string => {
+  const a = picked[sel[0]!];
+  const b = picked[sel[1]!];
+  if (!a || !b) return `Spiele 2 Karten`;
+  const parts: string[] = [];
+  if (a.card.color !== 'farblos' && a.card.color === b.card.color) parts.push(`Farbe ${a.card.color}`);
+  if (a.card.class === b.card.class) parts.push(`Klasse ${a.card.class}`);
+  return parts.length
+    ? `Combo aktiv: ${parts.join(' + ')} → Armee-Buff`
+    : `Keine Combo — verschiedene Farbe & Klasse`;
+};
+
 export const Combat: Screen = (host, ctx) => {
   const run = getCurrentRun();
   const encounter = getActiveEncounter();
@@ -253,23 +266,47 @@ export const Combat: Screen = (host, ctx) => {
         tray.appendChild(view);
       });
     } else if (state.roundPhase === 'select') {
-      hint.textContent = `Spiele ${PLAY_COUNT} Karten — ${p.selectedIdx.length}/${PLAY_COUNT}`;
+      const sel = p.selectedIdx;
+      hint.innerHTML =
+        sel.length < PLAY_COUNT
+          ? `Wähle 2 — 1. Klick = <b style="color:var(--c-krieg)">Front</b>, 2. = <b style="color:var(--mana)">Hinten</b> (${sel.length}/${PLAY_COUNT})`
+          : comboHintText(p.picked, sel);
       p.picked.forEach((d, idx) => {
+        const lineIdx = sel.indexOf(idx);
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex; flex-direction:column; align-items:center; gap:4px;';
+        const tag = document.createElement('div');
+        tag.className = 'cm-label';
+        const tagColor = lineIdx === 0 ? 'var(--c-krieg)' : lineIdx === 1 ? 'var(--mana)' : 'transparent';
+        tag.style.cssText = `font-size:10px; min-height:12px; letter-spacing:0.14em; color:${tagColor};`;
+        tag.textContent = lineIdx === 0 ? 'FRONT' : lineIdx === 1 ? 'HINTEN' : '·';
         const view = renderCardView({
           card: d.card,
           affordable: true,
           size: 'sm',
           troops: d.troops,
-          selected: p.selectedIdx.includes(idx),
+          selected: lineIdx >= 0,
           onClick: () => {
             RoundSystem.toggleSelect(state, idx);
             sfx.click();
             lastTrayKey = '';
           },
         });
-        tray.appendChild(view);
+        wrap.appendChild(tag);
+        wrap.appendChild(view);
+        tray.appendChild(wrap);
       });
       if (RoundSystem.canConfirm(state)) {
+        const swap = document.createElement('button');
+        swap.className = 'cm-btn cm-btn--ghost';
+        swap.textContent = '⇄ Front/Hinten tauschen';
+        swap.style.alignSelf = 'center';
+        swap.onclick = () => {
+          RoundSystem.swapLines(state);
+          sfx.click();
+          lastTrayKey = '';
+        };
+        tray.appendChild(swap);
         confirmBtn.style.display = '';
         confirmBtn.onclick = () => {
           RoundSystem.confirmSelection(state);
@@ -564,11 +601,13 @@ export const Combat: Screen = (host, ctx) => {
     cctx.clearRect(-20, -20, canvas.width + 40, canvas.height + 40);
     const horizonY = 60;
 
-    ComboAuraSystem.recomputeIfDirty(state);
+    // Armee-weiter Combo-Bonus dieser Runde → Units der betroffenen Seite leuchten.
+    const playerCombo = Object.keys(state.player.comboBuff).length > 0;
+    const enemyCombo = Object.keys(state.enemy.comboBuff).length > 0;
     for (const u of state.units) {
       const color = colorToCss(u.card.color);
       const cy = horizonY + u.y;
-      const hasCombo = (u.buffs.damage ?? 0) > 0 || (u.buffs.hp ?? 0) > 0 || (u.buffs.speed ?? 0) > 0;
+      const hasCombo = u.side === 'player' ? playerCombo : enemyCombo;
 
       let radius = DRAW_R;
       let alpha = 1;
