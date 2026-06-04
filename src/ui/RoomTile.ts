@@ -11,6 +11,7 @@ const META: Record<NodeType, TypeMeta> = {
   start: { label: 'Start', color: '#e0c878', size: 76 },
   combat_normal: { label: 'Kampf', color: '#e8dcc4', size: 80 },
   combat_hard: { label: 'Schwer', color: '#e8856e', size: 84 },
+  elite: { label: 'Elite', color: '#d76a4f', size: 92 },
   perk: { label: 'Zauber', color: '#c89fdc', size: 80 },
   shop: { label: 'Shop', color: '#7fc88a', size: 80 },
   treasure: { label: 'Schatz', color: '#f0c878', size: 80 },

@@ -1,8 +1,12 @@
 import type { Screen } from '../router';
 import { clearCurrentRun, getCurrentRun } from '../systems/run/currentRun';
+import { clearSavedRun } from '../systems/save/SaveService';
 
 export const Victory: Screen = (host, ctx) => {
   const run = getCurrentRun();
+
+  // Run abgeschlossen — Save löschen.
+  clearSavedRun();
   const visited = run?.visitedNodes.size ?? 0;
   const coins = run?.coins ?? 0;
 

@@ -2,11 +2,38 @@ import type { Screen } from '../router';
 import type { Color } from '../domain/Card';
 import { getCurrentRun } from '../systems/run/currentRun';
 import { setActColor } from '../systems/run/RunState';
-import { cardById, cardsByColor } from '../systems/data/cards';
 import { mulberry32 } from '../systems/rng';
-import { colorToCss } from '../systems/data/designTokens';
-import { renderCardView } from '../ui/CardView';
 import { sfx } from '../systems/audio';
+import { fitBg } from '../ui/backgrounds';
+
+// Vite-Glob lädt die "Wähle deinen Gegner"-Assets als gehashte URLs.
+//  - akt-N.png: Vollbild-Menühintergründe (Titel "AKT N · WÄHLE DEINEN GEGNER"
+//    ist bereits ins Bild eingebacken).
+//  - boss-<farbe>.png: fertige Boss-Karten inkl. Titel, Sigil und
+//    "HERAUSFORDERN"-Button — das ganze Bild ist die Schaltfläche.
+const aktImages = import.meta.glob('../assets/bossselect/akt-*.png', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
+const bossImages = import.meta.glob('../assets/bossselect/boss-*.png', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
+
+/** Höchste vorhandene AKT-Hintergrundnummer (akt-1..akt-N). */
+const MAX_AKT_BG = Object.keys(aktImages).length;
+
+/** Menühintergrund für einen Akt — geklemmt auf die vorhandenen Bilder. */
+const aktBgUrl = (actNumber: number): string => {
+  const n = Math.min(Math.max(1, actNumber), MAX_AKT_BG);
+  return aktImages[`../assets/bossselect/akt-${n}.png`] ?? '';
+};
+
+/** Boss-Karten-Bild für eine Farbe. */
+const bossImgUrl = (color: Color): string =>
+  bossImages[`../assets/bossselect/boss-${color}.png`] ?? '';
 
 const ALL_COLORS: readonly Color[] = ['natur', 'krieg', 'stein', 'untot', 'farblos'];
 const COLOR_LABEL: Record<Color, string> = {
@@ -15,13 +42,6 @@ const COLOR_LABEL: Record<Color, string> = {
   stein: 'Stein',
   untot: 'Untot',
   farblos: 'Farblos',
-};
-const COLOR_DESC: Record<Color, string> = {
-  natur: 'Heilung & Support — zähe, regenerierende Truppen.',
-  krieg: 'Aggression & Direktschaden — harte Offensive.',
-  stein: 'Verteidigung & Panzerung — schwer zu durchbrechen.',
-  untot: 'Dunkle Magie & Opfer — Debuffs und Beschwörung.',
-  farblos: 'Neutrale Elite — keine Farb-Combos, aber solo stark.',
 };
 
 /**
@@ -45,53 +65,53 @@ export const BossSelect: Screen = (host, ctx) => {
   }
   const options: Color[] = [pool[0]!, pool[1]!];
 
-  const cardFor = (color: Color) => cardById(cardsByColor(color)[0]!);
-
+  const bg = aktBgUrl(run.actNumber);
   host.innerHTML = `
-    <div class="cm-fit"><div class="cm-screen" style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:28px; padding:48px;">
-      <div style="text-align:center; display:flex; flex-direction:column; gap:6px;">
-        <span class="cm-label">Akt ${run.actNumber}</span>
-        <h1 class="cm-display" style="margin:0; font-size:56px; color:var(--gold-hi);">Wähle deinen Gegner</h1>
-        <span class="cm-label">Die gewählte Farbe bestimmt das gesamte Gegner-Deck dieses Akts.</span>
-      </div>
-      <div style="display:flex; gap:48px;" data-slot="options"></div>
+    <div class="cm-fit" style="${fitBg(bg ? `url(${bg})` : '')}"><div class="cm-screen" style="
+      display:flex; align-items:center; justify-content:center;
+    ">
+      <div data-slot="options" style="
+        display:flex; gap:64px; align-items:center; justify-content:center;
+        width:100%; padding-top:90px; box-sizing:border-box;
+      "></div>
     </div></div>
   `;
 
   const optionsHost = host.querySelector<HTMLElement>('[data-slot="options"]')!;
   for (const color of options) {
-    const accent = colorToCss(color);
-    const wrap = document.createElement('div');
-    wrap.style.cssText = `
-      display:flex; flex-direction:column; align-items:center; gap:14px; width:260px;
-      padding:20px; border:1px solid var(--line-hi); border-radius:8px;
-      background: linear-gradient(180deg, var(--surface-2), var(--surface));
+    const btn = document.createElement('button');
+    btn.className = 'cm-bossselect-card';
+    btn.type = 'button';
+    btn.setAttribute('aria-label', `${COLOR_LABEL[color]}-Boss herausfordern`);
+    btn.title = `${COLOR_LABEL[color]}-Boss herausfordern`;
+    btn.style.cssText = `
+      background:transparent; border:none; padding:0; cursor:pointer;
+      width:330px; max-width:34vw; line-height:0;
+      filter: drop-shadow(0 12px 28px rgba(0,0,0,0.55));
+      transition: transform 140ms ease, filter 140ms ease;
     `;
 
-    const title = document.createElement('div');
-    title.className = 'cm-display';
-    title.textContent = `${COLOR_LABEL[color]}-Boss`;
-    title.style.cssText = `font-size:26px; color:${accent};`;
-    wrap.appendChild(title);
+    const img = document.createElement('img');
+    img.src = bossImgUrl(color);
+    img.alt = `${COLOR_LABEL[color]}-Boss`;
+    img.draggable = false;
+    img.style.cssText = 'width:100%; height:auto; display:block; border-radius:12px;';
+    btn.appendChild(img);
 
-    wrap.appendChild(renderCardView({ card: cardFor(color), affordable: true, size: 'sm' }));
-
-    const desc = document.createElement('div');
-    desc.textContent = COLOR_DESC[color];
-    desc.style.cssText =
-      "font-family:'IBM Plex Sans', sans-serif; font-size:12px; color:var(--ink-dim); text-align:center; min-height:48px;";
-    wrap.appendChild(desc);
-
-    const btn = document.createElement('button');
-    btn.className = 'cm-btn cm-btn--gold';
-    btn.textContent = 'Herausfordern';
+    btn.onmouseenter = () => {
+      btn.style.transform = 'translateY(-6px) scale(1.03)';
+      btn.style.filter = 'drop-shadow(0 18px 36px rgba(0,0,0,0.6)) brightness(1.06)';
+    };
+    btn.onmouseleave = () => {
+      btn.style.transform = '';
+      btn.style.filter = 'drop-shadow(0 12px 28px rgba(0,0,0,0.55))';
+    };
     btn.onclick = () => {
       setActColor(run, color);
       sfx.click();
       ctx.go('worldmap');
     };
-    wrap.appendChild(btn);
 
-    optionsHost.appendChild(wrap);
+    optionsHost.appendChild(btn);
   }
 };

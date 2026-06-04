@@ -2,6 +2,8 @@
 
 **Dauer:** 1 Tag · **Risiko:** niedrig
 
+> ⚠️ **Kern-Leitplanken (Stand 2026-06):** Historischer MVP-Bau-Plan. Verbindlicher **aktueller Kern**: festes 25-Karten-Deck (kein Sammeln/Wachstum, nur Upgrades) · Mana = reine Anzeige ohne Mechanik · Shop upgradet (kein Kartenkauf) · DOM-Hybrid (kein Phaser). Perk-Effekte dürfen **kein Mana** nutzen. Details: [README → Kern-Leitplanken](../README.md#kern-leitplanken).
+
 ## Ziel
 
 Zauber-Räume tauchen auf der Welt-Karte auf. Der Spieler wählt dort einen permanenten Perk für den restlichen Run aus, der in jedem folgenden Combat aktiv ist (Mana-Boost, Max-HP, etc.).

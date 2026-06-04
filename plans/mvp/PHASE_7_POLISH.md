@@ -2,6 +2,8 @@
 
 **Dauer:** 1–2 Tage · **Risiko:** niedrig (aber zeitkritisch)
 
+> ⚠️ **Kern-Leitplanken (Stand 2026-06):** Historischer MVP-Bau-Plan. Verbindlicher **aktueller Kern**: festes 25-Karten-Deck (kein Sammeln/Wachstum, nur Upgrades) · Mana = reine Anzeige ohne Mechanik · Shop upgradet (kein Kartenkauf) · DOM-Hybrid (kein Phaser). Details: [README → Kern-Leitplanken](../README.md#kern-leitplanken).
+
 ## Ziel
 
 Den MVP von „läuft" zu „macht Spaß zum Wiederholen" bringen. Balance-Iteration, Bugfixes, visuelles Feedback, Sound. **Kein neues Feature, keine echten Sprites — nur das Vorhandene besser machen.**

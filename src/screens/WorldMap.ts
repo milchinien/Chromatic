@@ -10,7 +10,8 @@ import { getOrCreateRoomMap } from '../systems/run/RoomMapGenerator';
 import { actName } from '../systems/run/MapGenerator';
 import { mulberry32 } from '../systems/rng';
 import { renderRoomTile, roomTileSize } from '../ui/RoomTile';
-import { BG, bgUrl } from '../ui/backgrounds';
+import { BG, bgUrl, fitBg } from '../ui/backgrounds';
+import { saveRun } from '../systems/save/SaveService';
 
 // Welt-Karte-Screen. Liest aktiven Run aus currentRun-Singleton. Wenn kein
 // Run aktiv ist (z.B. direkter Aufruf), zurück ins Hauptmenü.
@@ -30,6 +31,9 @@ export const WorldMap: Screen = (host, ctx) => {
     host.innerHTML = '';
     return;
   }
+
+  // Auto-Save: Welt-Karte ist ein sicherer Punkt (nach jedem Encounter).
+  saveRun(run);
 
   const nodeById = new Map(run.map.nodes.map((n) => [n.id, n]));
   const posOf = (id: string): { x: number; y: number } => {
@@ -66,7 +70,7 @@ export const WorldMap: Screen = (host, ctx) => {
   })();
 
   host.innerHTML = `
-    <div class="cm-fit"><div class="cm-screen" style="background-image:${bgUrl(BG.worldmap!)}; background-size:cover; background-position:center;">
+    <div class="cm-fit" style="${fitBg(bgUrl(BG.worldmap!))}"><div class="cm-screen">
       <!-- HUD -->
       <div class="cm-hud">
         <div class="cm-hud-left">
@@ -161,6 +165,16 @@ export const WorldMap: Screen = (host, ctx) => {
     // Boss-Welt-Knoten überspringt die Sub-Map und startet direkt den Boss-Combat.
     if (node.type === 'boss') {
       const enc = encounterForNodeType('boss', run.actNumber, run.actColor);
+      if (enc) {
+        setActiveEncounter(enc);
+        ctx.go('combat');
+      }
+      return;
+    }
+
+    // Elite-Welt-Knoten: direkter, härterer Kampf (keine Sub-Map), bessere Belohnung.
+    if (node.type === 'elite') {
+      const enc = encounterForNodeType('elite', run.actNumber, run.actColor);
       if (enc) {
         setActiveEncounter(enc);
         ctx.go('combat');

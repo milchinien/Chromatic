@@ -2,6 +2,8 @@
 
 Diese Datei ist die **verbindliche visuelle Spezifikation** für alle Phasen ab jetzt. Sie wurde aus einem Claude-Design-Handoff-Bundle extrahiert. Die rohen Quell-Dateien (HTML/CSS/JSX-Prototypen) liegen unter [`design/`](../design/) und sind die Quelle der Wahrheit — diese Datei ist die destillierte Implementierungs-Anleitung.
 
+> ⚠️ **Kern-Leitplanken (Stand 2026-06):** Visuals bleiben gültig, aber die **Mechanik-Hinweise** sind am aktuellen Kern zu lesen: **Mana-Bar & Mana-Cost-Bubble sind reine Deko ohne Funktion** (kein „locked = Mana zu wenig" — Karten sind nie mana-gated). Das Deck ist **fest (25 Karten)** — kein Kartenkauf/-sammeln. Details: [README → Kern-Leitplanken](README.md#kern-leitplanken).
+
 ## Quell-Dateien
 
 | Datei | Inhalt |

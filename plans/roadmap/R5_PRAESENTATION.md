@@ -2,6 +2,10 @@
 
 **Dauer:** offen (asset-getrieben) · **Priorität:** mittel-niedrig (wichtig vor Release, nicht davor)
 
+> ⚠️ **Kern-Leitplanken (verbindlich):** Festes 25-Karten-Deck (kein Sammeln/Wachstum) · Mana = reine Anzeige ohne Mechanik (Mana-Gem nur Deko) · **DOM + Vanilla-Canvas-Hybrid, KEIN Phaser**. Details: [README → Kern-Leitplanken](../README.md#kern-leitplanken).
+>
+> **🔄 angepasst:** Animationen/Partikel via Canvas2D statt `Phaser.anims`. Sprite-Arbeit betrifft **25 Karten** (nicht „40+"). Karten haben bereits Voll-Artwork-PNGs + Hintergründe pro Akt sind teils vorhanden — hier eher Verfeinerung. Mana-Gem auf Karten bleibt rein dekorativ.
+
 ## Ziel
 
 Vom „programmierten Prototyp mit geometrischen Shapes" zum „verkaufbar wirkenden Spiel". Echte Sprites, Partikel-Effekte, Musik, vertonte Boss-Lines. Optisches/akustisches Niveau hoch genug für einen Steam-Release.
@@ -48,12 +52,12 @@ Diese Phase gilt **erst dann als abgeschlossen**, wenn dieses Hauptziel **bug-fr
   - Walk-Animation (4–6 Frames)
   - Attack-Animation (3–4 Frames)
   - Death-Animation (3–4 Frames)
-- [ ] 40+ Karten × ~16 Frames = viel Arbeit. Plan B: weniger Animations-Frames pro Karte
-- [ ] Phaser-Integration: `this.anims.create({ ... })` pro Unit-Typ in einem zentralen `src/systems/assets/animations.ts`
+- [ ] **25 Karten** × ~16 Frames = viel Arbeit. Plan B: weniger Animations-Frames pro Karte *(🔄 nicht „40+" — festes 25-Karten-Deck)*
+- [ ] **Canvas2D-Integration** (🔄 kein Phaser): zentrale Animations-Tabelle in `src/systems/assets/animations.ts`, vom Battlefield-Canvas-Renderer gelesen
 - [ ] Lade-Logik: Vorab in `Preloader`-Scene mit Progress-Bar
 
 ### 3. UI-Redesign
-- [ ] Karten-Design im Hand: statt textbasierten Buttons → echte Karten-Artwork mit Frame, Stats-Overlay, Mana-Cost-Gem
+- [ ] Karten-Design in der Hand: bereits echte Karten-Artwork-PNGs — hier Frame/Stats-Overlay verfeinern (Mana-Gem nur Deko, 🔄 keine Kosten-Funktion)
 - [ ] HP-Bars: stilisierte Balken mit Texturen statt flacher Rechtecke
 - [ ] Welt-Karte: Knoten als illustrierte Icons (Schwerter für Combat, Truhe für Schatz, etc.)
 - [ ] Hintergründe pro Akt: dunkler Wald (Akt 1), Höhle (Akt 2), Schloss (Akt 3)

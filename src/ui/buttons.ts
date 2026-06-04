@@ -130,6 +130,9 @@ const nodeNameMap: Record<NodeType, string> = {
   treasure: 'Schatz-Knopf.png',
   shop: 'Shop-Knopf.png',
   perk: 'Zauber-Knopf.png',
+  // Elite = harter Kampf → nutzt vorerst das „Schwer"-Icon (rote Umrandung +
+  // Größe + Label „ELITE" unterscheiden es). `Elite-Knopf.png` überschreibt es.
+  elite: 'Schwer-Knopf.png',
   boss: 'Endboss-Knopf.png',
 };
 

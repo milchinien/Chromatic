@@ -12,7 +12,7 @@ import {
 import { getCurrentRun } from '../systems/run/currentRun';
 import { renderCardView } from '../ui/CardView';
 import { sfx } from '../systems/audio';
-import { BG, bgUrl } from '../ui/backgrounds';
+import { BG, bgUrl, fitBg } from '../ui/backgrounds';
 
 const COINS_AMOUNT = 50;
 const HEAL_AMOUNT = 30;
@@ -48,7 +48,7 @@ export const Treasure: Screen = (host, ctx) => {
     </div>`;
 
   const shell = (inner: string): string => `
-    <div class="cm-fit"><div class="cm-screen" style="display:flex; align-items:center; justify-content:center; background-image:${bgUrl(BG.treasure!)}; background-size:cover; background-position:center;">
+    <div class="cm-fit" style="${fitBg(bgUrl(BG.treasure!))}"><div class="cm-screen" style="display:flex; align-items:center; justify-content:center;">
       <div class="cm-hud">
         <div class="cm-hud-left">
           <div class="cm-act">

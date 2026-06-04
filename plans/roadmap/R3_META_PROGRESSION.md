@@ -2,9 +2,13 @@
 
 **Dauer:** ~1–2 Wochen · **Priorität:** mittel-hoch
 
+> ⚠️ **Kern-Leitplanken (verbindlich):** Festes 25-Karten-Deck (kein Sammeln/Wachstum, nur Upgrades) · Mana = reine Anzeige ohne Mechanik · Shop upgradet (kein Kartenkauf) · DOM-Hybrid. Details: [README → Kern-Leitplanken](../README.md#kern-leitplanken).
+>
+> **🔄 angepasst:** **❌ Karten-Freischaltung entfällt** — alle 25 Karten sind immer verfügbar. Meta-Progression läuft über **freischaltbare Starter-Deck-Varianten** (verschiedene Zusammenstellungen **aus den 25 bestehenden Karten**), **Perks** (nicht-Mana) und **Achievements/Statistiken**. Perk-Beispiele dürfen **kein Mana** referenzieren.
+
 ## Ziel
 
-Spieler haben einen Grund, nach Sieg oder Niederlage erneut zu starten: dauerhaft freigeschaltete Karten, Perks, Starter-Decks. Statistiken erlauben das Vergleichen von Runs.
+Replay-Grund nach Sieg/Niederlage: freischaltbare **Starter-Deck-Varianten** (aus den bestehenden 25 Karten) + Perks + Achievements + Statistiken. *(🔄 „freigeschaltete Karten" ❌ entfällt — Karten sind immer alle verfügbar.)*
 
 ## 🎯 Definition of Done — Hauptziel (Gate)
 
@@ -15,9 +19,9 @@ Diese Phase gilt **erst dann als abgeschlossen**, wenn dieses Hauptziel **bug-fr
 - Meta-Save separater LocalStorage-Key, überlebt Run-Save-Löschung
 - Alle ≥ 10 Achievements korrekt triggerbar (Trigger-Test durchgelaufen)
 - Achievement-Toast erscheint genau einmal pro Erfolg, nicht dauerhaft
-- Mindestens 1 Karte, 1 Perk, 1 Starter-Deck initial gesperrt und in Tests freischaltbar
-- Gesperrte Karten/Perks tauchen nicht im Shop/Pool/Perk-Raum auf
-- Starter-Deck-Auswahl-Screen funktional, mehrere Decks wählbar (mit echten Combat-Unterschieden)
+- Mindestens 1 Perk und 1 **Starter-Deck-Variante** initial gesperrt und in Tests freischaltbar *(❌ „1 Karte freischaltbar" entfällt — alle Karten immer verfügbar)*
+- Gesperrte Perks/Starter-Decks tauchen erst nach Unlock auf *(❌ „gesperrte Karten" entfällt)*
+- Starter-Deck-Auswahl-Screen funktional, mehrere Decks wählbar (verschiedene Zusammenstellungen aus den 25 Karten, mit echten Combat-Unterschieden)
 - Statistik-Screen zeigt korrekte Werte, Hover-Info für Unlocks-Bedingungen
 - Tests grün (metaSave, unlocks, achievements)
 - Browser-Console: 0 Errors, 0 Warnings
@@ -43,9 +47,9 @@ Diese Phase gilt **erst dann als abgeschlossen**, wenn dieses Hauptziel **bug-fr
     runsCompleted: number;
     runsWon: number;
     actsBeaten: { act1: number; act2: number; act3: number };
-    unlockedCards: string[];     // card IDs
+    // ❌ unlockedCards entfällt — alle 25 Karten sind immer verfügbar
     unlockedPerks: string[];
-    unlockedStarterDecks: string[];
+    unlockedStarterDecks: string[]; // Varianten aus den bestehenden 25 Karten
     achievements: string[];
     favoriteCard: { id: string; playCount: number };
     longestRun: number;          // Sekunden
@@ -56,13 +60,12 @@ Diese Phase gilt **erst dann als abgeschlossen**, wenn dieses Hauptziel **bug-fr
 - [ ] Migration analog R1
 
 ### 2. Unlock-Bedingungen (3 Tage)
-- [ ] `src/systems/meta/unlocks.ts` — pro Karte/Perk/Deck eine Funktion `isUnlocked(meta: MetaSave): boolean`
-- [ ] Beispiele:
-  - Karte „Erzdämon" — Unlock nach `actsBeaten.act3 >= 1`
-  - Perk „Doppel-Mana-Regen" — Unlock nach `runsWon >= 5`
-  - Starter-Deck „Untot-Fokus" — Unlock nach 50 Untot-Karten gespielt
-- [ ] Im Shop/Drop-Pool: gesperrte Karten werden gefiltert
-- [ ] Im Perk-Raum: gesperrte Perks erscheinen nicht in der Auswahl
+- [ ] `src/systems/meta/unlocks.ts` — pro Perk/Starter-Deck eine Funktion `isUnlocked(meta: MetaSave): boolean`
+- [ ] Beispiele (🔄 ohne Mana, ohne Karten-Freischaltung):
+  - Perk „Geschärfte Klingen+" (mehr Damage) — Unlock nach `runsWon >= 5`
+  - Starter-Deck „Untot-Fokus" (Untot-lastige Auswahl aus den 25 Karten) — Unlock nach 50 Untot-Karten gespielt
+  - Starter-Deck „Stein-Festung" (Tank-lastig) — Unlock nach `actsBeaten.act3 >= 1`
+- [ ] Im Perk-Raum / Starter-Deck-Wahl: gesperrte Einträge erscheinen nicht *(❌ „gesperrte Karten im Shop filtern" entfällt — keine gesperrten Karten)*
 
 ### 3. Statistik-Tracking während Runs (1 Tag)
 - [ ] In `RunState` ein Tracking-Subobjekt:
@@ -134,7 +137,7 @@ src/
 - Vor Run-Start: Auswahl-Screen für Starter-Deck (initial nur „Generalist", weitere freischaltbar)
 - Während des Spiels: Achievement-Toasts erscheinen bei Erfüllung
 - Statistik-Screen zeigt Karriere-Übersicht, Unlocks mit Bedingungen
-- Gesperrte Karten/Perks tauchen nicht in Shop/Pool auf, bis Bedingung erfüllt
+- Gesperrte **Perks / Starter-Deck-Varianten** tauchen erst nach Unlock auf *(❌ keine gesperrten Karten — alle 25 immer verfügbar)*
 - Meta-Save überlebt Run-Niederlagen und Browser-Refreshs
 
 ---
@@ -157,7 +160,7 @@ src/
 - [ ] Hauptziel (oben) bug-frei erfüllt
 - [ ] Akzeptanz-Test komplett grün durchgelaufen
 - [ ] Alle ≥ 10 Achievements via Trigger-Test ausgelöst und im Stats-Screen sichtbar
-- [ ] Mindestens 1 Karte, 1 Perk, 1 Starter-Deck in Tests freigeschaltet
+- [ ] Mindestens 1 Perk und 1 Starter-Deck-Variante in Tests freigeschaltet *(❌ Karten-Freischaltung entfällt)*
 - [ ] Meta-Save überlebt Run-Niederlage und Browser-Refresh
 - [ ] `pnpm test` — alle Tests grün
 - [ ] `pnpm lint` — keine Errors

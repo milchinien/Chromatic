@@ -29,6 +29,10 @@ export const encounterForNodeType = (
       return make('combat', color, 30, actNumber);
     case 'combat_hard':
       return make('combat_hard', color, 60, actNumber);
+    case 'elite':
+      // Härter als combat_hard (Gegner-Level +1 in Combat), bessere Belohnung +
+      // gratis Upgrade. Zwischen schwerem Kampf und Boss angesiedelt.
+      return make('elite', color, 90, actNumber);
     case 'boss':
       return make('boss', color, 150, actNumber);
     default:

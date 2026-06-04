@@ -2,6 +2,8 @@
 
 **Dauer:** 3 Tage · **Risiko:** mittel
 
+> ⚠️ **Kern-Leitplanken (Stand 2026-06):** Historischer MVP-Bau-Plan. Verbindlicher **aktueller Kern**: festes 25-Karten-Deck (kein Sammeln/Wachstum, nur Upgrades) · Mana = reine Anzeige ohne Mechanik · Shop upgradet (kein Kartenkauf) · DOM-Hybrid (kein Phaser). Details: [README → Kern-Leitplanken](../README.md#kern-leitplanken).
+
 ## Ziel
 
 Ein vollständiger Run vom Hauptmenü bis zum Endboss-Sieg (oder Niederlage) ist spielbar. Die Welt-Karte funktioniert, der Spieler navigiert durch Knoten, in jedem Kampf-Knoten startet die `CombatScene` mit dem Spieler-Deck aus `RunState` und einem encounter-spezifischen Gegner-Deck.

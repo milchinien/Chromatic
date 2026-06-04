@@ -46,7 +46,7 @@ import { colorToCss, COLORS_CSS } from '../systems/data/designTokens';
 import { renderCardView } from '../ui/CardView';
 import { renderHpBar } from '../ui/HpBar';
 import { renderManaBar } from '../ui/ManaBar';
-import { bgUrl, combatBgForAct } from '../ui/backgrounds';
+import { bgUrl, combatBgForAct, fitBg } from '../ui/backgrounds';
 
 /**
  * Combat-Screen — RUNDENBASIERT.
@@ -73,6 +73,7 @@ export const Combat: Screen = (host, ctx) => {
   const sandboxMode = !run || !encounter;
   const isBossEncounter = encounter?.id.startsWith('boss_') === true;
   const isMiniBossEncounter = encounter?.id.startsWith('mini_boss_') === true;
+  const isEliteEncounter = encounter?.id.startsWith('elite_') === true;
 
   const rng = mulberry32(Date.now() & 0xffffffff);
 
@@ -87,7 +88,7 @@ export const Combat: Screen = (host, ctx) => {
   const buildEnemyDeck = (): DeckEntry[] => {
     const enemyLevel = sandboxMode
       ? 1
-      : Math.max(1, run!.actNumber + (isBossEncounter || isMiniBossEncounter ? 1 : 0));
+      : Math.max(1, run!.actNumber + (isBossEncounter || isMiniBossEncounter || isEliteEncounter ? 1 : 0));
     const cards = sandboxMode ? sandboxEnemyDeck() : encounterDeck(encounter!);
     return toEntries(cards, () => enemyLevel);
   };
@@ -100,9 +101,9 @@ export const Combat: Screen = (host, ctx) => {
     for (const perk of run.activePerks) applyPerkOnCombatMount(perk, state.player);
   }
 
-  const combatBgFile = combatBgForAct(run?.actNumber ?? 1, isBossEncounter);
+  const combatBgFile = combatBgForAct(run?.actNumber ?? 1, isBossEncounter || isEliteEncounter);
   host.innerHTML = `
-    <div class="cm-fit"><div class="cm-screen cm-combat" style="display:flex; flex-direction:column; background-image:${bgUrl(combatBgFile)}; background-size:cover; background-position:center;">
+    <div class="cm-fit" style="${fitBg(bgUrl(combatBgFile))}"><div class="cm-screen cm-combat" style="display:flex; flex-direction:column;">
       <div class="cm-combat-hud" style="
         position:absolute; top:0; left:0; right:0; padding:18px 28px;
         display:flex; justify-content:space-between; align-items:flex-start; z-index:5;
@@ -408,7 +409,7 @@ export const Combat: Screen = (host, ctx) => {
 
     // Boss/Mini-Boss-Sieg: eine zufällige eigene Karte gratis upgraden.
     let bossUpgradeName: string | null = null;
-    if (!sandboxMode && run && kind === 'victory' && (isBossEncounter || isMiniBossEncounter)) {
+    if (!sandboxMode && run && kind === 'victory' && (isBossEncounter || isMiniBossEncounter || isEliteEncounter)) {
       const ids = [...new Set(run.deck.map((c) => c.id))];
       const pick = ids[Math.floor(rng() * ids.length)];
       if (pick) {
@@ -427,6 +428,8 @@ export const Combat: Screen = (host, ctx) => {
           exitRoom(run);
         }
         if (isBossEncounter) markNodeVisited(run, run.currentNodeId);
+        // Elite ist ein direkter Welt-Knoten-Kampf (keine Sub-Map) → hier markieren.
+        if (isEliteEncounter) markNodeVisited(run, run.currentNodeId);
       } else {
         run.baseHp = 0;
       }

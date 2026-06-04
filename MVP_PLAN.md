@@ -6,6 +6,8 @@ Referenziert [GAME_DESIGN.md](GAME_DESIGN.md) und [TECH_PLAN.md](TECH_PLAN.md).
 
 **Definition „MVP fertig":** Ein neuer Spieler kann das Spiel starten, einen ganzen Akt durchspielen (Sieg über Endboss → kurze Win-Anzeige → zurück ins Hauptmenü), oder verlieren und neu starten. Combat fühlt sich nach Real-Time-Combo-Druck an. Mindestens 2 Encounter-Typen und 10 verschiedene Karten existieren.
 
+> ⚠️ **Kern-Leitplanken (Stand 2026-06):** Dieser Überblick stammt aus einer früheren Design-Ära. Verbindlicher **aktueller Kern**: festes 25-Karten-Deck (kein Sammeln/Wachstum, nur Upgrades) · Mana = reine Anzeige **ohne Mechanik** · Shop **upgradet** (kein Kartenkauf) · DOM-Hybrid (kein Phaser). Stellen unten zu „Deck-Wachstum", „Karten kaufen" und „ManaSystem (Cost-Abzug)" sind damit **überholt** — siehe [plans/README → Kern-Leitplanken](plans/README.md#kern-leitplanken).
+
 ---
 
 ## Meilenstein 0 — Projekt-Setup (½ Tag)
@@ -63,14 +65,14 @@ Referenziert [GAME_DESIGN.md](GAME_DESIGN.md) und [TECH_PLAN.md](TECH_PLAN.md).
 
 ## Meilenstein 3 — Shop & Schatz-Räume (2 Tage)
 
-**Liefert:** Deck-Wachstum.
+**Liefert:** ~~Deck-Wachstum~~ → 🔄 **Deck-Verstärkung via Upgrades** (festes Deck).
 
-- [ ] `ShopScene` — 4 Karten zum Kauf, Coins-Anzeige, Hover-Info, Kauf zieht Coins ab und fügt Karte zu `RunState.deck`
-- [ ] `TreasureScene` — drei Belohnungs-Typen (Coins / Karte / Base-HP-Heilung), randomisiert
-- [ ] Karten-Drop-Pool als einfache Liste in `cards.ts` mit Rarität-Tag (für MVP nur „common")
+- [ ] `Shop` — eigene Deck-Karten **upgraden** (Coins-Abzug `60 + 40·Level`), Coins-Anzeige, Info zu nächsten Stats *(❌ kein Kartenkauf, kein Hinzufügen zu `RunState.deck`)*
+- [ ] `Treasure` — drei Belohnungs-Typen (Coins / **gratis Upgrade** / Base-HP-Heilung) *(❌ „Karte" als Belohnung entfällt)*
+- [ ] ❌ ~~Karten-Drop-Pool~~ — entfällt (keine Karten-Drops; das Deck wächst nie)
 - [ ] `MapGenerator` platziert Shop und Schatz als eigene Knoten-Typen
 
-**Akzeptanz:** Im Run lassen sich Karten kaufen und finden. Das wirkt sich im nächsten Combat aus (Random-Draw zieht potenziell neue Karten).
+**Akzeptanz:** Im Run lassen sich eigene Karten **upgraden** und heilen/Coins finden. Upgrades wirken sich im nächsten Combat aus (höhere Stats + Truppen-Range). *(🔄 „Karten kaufen/finden" überholt — festes 25-Karten-Deck.)*
 
 ---
 

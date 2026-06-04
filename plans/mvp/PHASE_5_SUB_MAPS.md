@@ -2,6 +2,8 @@
 
 **Dauer:** 1 Tag · **Risiko:** niedrig
 
+> ⚠️ **Kern-Leitplanken (Stand 2026-06):** Historischer MVP-Bau-Plan. Verbindlicher **aktueller Kern**: festes 25-Karten-Deck (kein Sammeln/Wachstum, nur Upgrades) · Mana = reine Anzeige ohne Mechanik · Shop upgradet (kein Kartenkauf) · DOM-Hybrid (kein Phaser). Details: [README → Kern-Leitplanken](../README.md#kern-leitplanken).
+
 ## Ziel
 
 Jeder Welt-Knoten ist intern eine eigene Raum-Karte mit 3–5 Sub-Knoten. Der Spieler navigiert durch diese Sub-Karte, durchläuft alle (oder ein Zwischenboss-Exit), und kehrt erst dann zur Welt-Karte zurück. Dadurch fühlt sich jeder Welt-Raum nach mehreren Encountern an, nicht nach einem einzelnen Kampf.

@@ -5,7 +5,7 @@ import { getCurrentRun } from '../systems/run/currentRun';
 import { leveledStats, troopRangeFor, upgradeCostFor } from '../systems/data/balance';
 import { renderCardView } from '../ui/CardView';
 import { sfx } from '../systems/audio';
-import { BG, bgUrl } from '../ui/backgrounds';
+import { BG, bgUrl, fitBg } from '../ui/backgrounds';
 
 const colorLabel: Record<Card['color'], string> = {
   natur: 'Natur',
@@ -40,7 +40,7 @@ export const Shop: Screen = (host, ctx) => {
   let selectedIdx = 0;
 
   host.innerHTML = `
-    <div class="cm-fit"><div class="cm-screen" style="background-image:${bgUrl(BG.shop!)}; background-size:cover; background-position:center;">
+    <div class="cm-fit" style="${fitBg(bgUrl(BG.shop!))}"><div class="cm-screen">
       <div class="cm-hud">
         <div class="cm-hud-left">
           <button class="cm-btn cm-btn--ghost" data-action="leave" style="padding:6px 10px;">◀ Verlassen</button>

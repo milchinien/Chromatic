@@ -5,18 +5,24 @@ import { resetShopPurchases } from './Shop';
 import { resetTreasureCollections } from './Treasure';
 import { resetPerkSelections } from './PerkSelect';
 import { isMuted, toggleMute } from '../systems/audio';
-import { BG, bgUrl } from '../ui/backgrounds';
+import { BG, bgUrl, fitBg } from '../ui/backgrounds';
+import { hasSavedRun, loadRun } from '../systems/save/SaveService';
 
 /**
  * Hauptmenü — 1:1-Port von design/project/screens/menu.jsx.
  * Klassen aus src/styles.css: cm-screen, cm-chip, cm-display, cm-label.
  * Restliches Styling inline, exakt wie im JSX-Original.
  */
-type MenuAction = 'options' | 'credits' | 'quit';
+type MenuAction = 'options' | 'credits' | 'quit' | 'resume';
 
 export const MainMenu: Screen = (host, ctx) => {
+  // „Fortsetzen" nur anbieten, wenn ein gültiges Save vorliegt (Refresh mitten
+  // im Run). Es wird dann der primäre Button.
+  const canResume = hasSavedRun();
+
   const items: ReadonlyArray<{ label: string; primary?: boolean; screen?: string; action?: MenuAction }> = [
-    { label: 'Spielen', primary: true, screen: 'worldmap' },
+    ...(canResume ? [{ label: 'Fortsetzen', primary: true, action: 'resume' as MenuAction }] : []),
+    { label: 'Spielen', primary: !canResume, screen: 'worldmap' },
     { label: 'Karten', screen: 'gallery' },
     { label: 'Optionen', action: 'options' },
     { label: 'Credits', action: 'credits' },
@@ -60,7 +66,7 @@ export const MainMenu: Screen = (host, ctx) => {
     .join('');
 
   host.innerHTML = `
-    <div class="cm-fit"><div class="cm-screen" style="display:flex; align-items:center; justify-content:center; background-image:${bgUrl(BG.menu!)}; background-size:cover; background-position:center;">
+    <div class="cm-fit" style="${fitBg(bgUrl(BG.menu!))}"><div class="cm-screen" style="display:flex; align-items:center; justify-content:center;">
       <svg style="position:absolute; inset:0; width:100%; height:100%;" preserveAspectRatio="none" viewBox="0 0 1280 800">
         <defs>
           <radialGradient id="mm-glow" cx="50%" cy="20%" r="60%">
@@ -181,6 +187,19 @@ export const MainMenu: Screen = (host, ctx) => {
   const activate = (idx: number): void => {
     const it = items[idx];
     if (!it) return;
+    if (it.action === 'resume') {
+      const saved = loadRun();
+      if (!saved) {
+        // Save zwischenzeitlich ungültig/weg — neu rendern ohne Fortsetzen.
+        ctx.go('menu');
+        return;
+      }
+      setCurrentRun(saved);
+      setActiveEncounter(null);
+      // Exakter Zustand: war der Spieler in einer Sub-Map, dorthin; sonst Welt-Karte.
+      ctx.go(saved.activeWorldNodeId ? 'roommap' : 'worldmap');
+      return;
+    }
     if (it.screen === 'worldmap') {
       resetShopPurchases();
       resetTreasureCollections();

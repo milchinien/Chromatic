@@ -18,6 +18,13 @@ export const bgUrl = (name: string): string => {
   return u ? `url(${u})` : '';
 };
 
+/** Inline-Style für die `.cm-fit`-Hülle: setzt das Vollbild-Hintergrundbild über
+ *  die CSS-Variable `--screen-bg`. Das Bild deckt damit den GANZEN Viewport
+ *  (full-bleed, `cover`) statt nur die zentrierte 1280×800-Box — keine
+ *  leeren Streifen links/rechts mehr. `cssUrl` ist das fertige `url(...)`
+ *  (z.B. aus `bgUrl()`); leer → Default-Verlauf aus styles.css. */
+export const fitBg = (cssUrl: string): string => (cssUrl ? `--screen-bg:${cssUrl};` : '');
+
 /** Mapping Screen-Key → Bild-Datei-Name. Eine zentrale Stelle für alle Screens. */
 export const BG: Record<string, string> = {
   menu: 'Main-Screen-Hintergrund.png',

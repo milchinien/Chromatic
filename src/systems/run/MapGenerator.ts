@@ -118,33 +118,47 @@ const LAYERS_BY_ACT: Record<number, readonly LayerSpec[]> = {
 
 /** Sonder-Räume, von denen jeder Akt MIND. einen enthalten muss. Fehlt einer nach
  *  dem gewichteten Würfeln, wird ein Mid-Layer-Kampfknoten dazu umgewandelt. */
-const GUARANTEED_NODE_TYPES: readonly NodeType[] = ['shop', 'treasure', 'perk'];
-const COMBAT_NODE_TYPES: readonly NodeType[] = ['combat_normal', 'combat_hard'];
+const GUARANTEED_NODE_TYPES: readonly NodeType[] = ['shop', 'treasure', 'perk', 'elite'];
 
-/** Stellt sicher, dass jeder Sonder-Raum-Typ (Shop/Schatz/Perk) mind. einmal
- *  vorkommt. Wandelt fehlende Typen auf zufällige Mid-Layer-Kampfknoten um —
- *  combat_normal bevorzugt, damit der Schwierigkeitsgrad erhalten bleibt. */
+/** Stellt sicher, dass jeder Sonder-Raum-Typ (Shop/Schatz/Perk/Event) mind. einmal
+ *  vorkommt. Wandelt fehlende Typen auf Mid-Layer-Knoten um. Umwandlungs-Kandidaten
+ *  in Prioritäts-Reihenfolge: combat_normal → combat_hard → ÜBERZÄHLIGE Sonder-Räume
+ *  (ein zweiter Shop o. Ä.). Die LETZTE Kopie eines benötigten Typs wird nie
+ *  entfernt — so passen auch mehrere fehlende Typen sicher in die Mid-Layer. */
 const ensureGuaranteedNodeTypes = (nodes: MapNode[], lastLayer: number, rng: Rng): void => {
-  const present = new Set(nodes.map((n) => n.type));
-  const missing = GUARANTEED_NODE_TYPES.filter((t) => !present.has(t));
+  const count = (t: NodeType): number => nodes.reduce((s, n) => s + (n.type === t ? 1 : 0), 0);
+  const remaining = new Map<NodeType, number>();
+  for (const n of nodes) remaining.set(n.type, (remaining.get(n.type) ?? 0) + 1);
+
+  const missing = GUARANTEED_NODE_TYPES.filter((t) => count(t) === 0);
   if (missing.length === 0) return;
 
-  const isMidCombat = (n: MapNode): boolean =>
-    n.layer !== 0 && n.layer !== lastLayer && COMBAT_NODE_TYPES.includes(n.type);
+  const isMid = (n: MapNode): boolean => n.layer !== 0 && n.layer !== lastLayer;
   const shuffle = (idx: number[]): number[] => idx.sort(() => rng() - 0.5);
   const idxOf = (predicate: (n: MapNode) => boolean): number[] =>
     nodes.map((n, i) => ({ n, i })).filter(({ n }) => predicate(n)).map(({ i }) => i);
 
+  // Kandidaten priorisiert: erst Kämpfe (Schwierigkeit zuerst opfern), dann
+  // überzählige Sonder-Räume.
   const candidates = [
-    ...shuffle(idxOf((n) => isMidCombat(n) && n.type === 'combat_normal')),
-    ...shuffle(idxOf((n) => isMidCombat(n) && n.type === 'combat_hard')),
+    ...shuffle(idxOf((n) => isMid(n) && n.type === 'combat_normal')),
+    ...shuffle(idxOf((n) => isMid(n) && n.type === 'combat_hard')),
+    ...shuffle(idxOf((n) => isMid(n) && GUARANTEED_NODE_TYPES.includes(n.type))),
   ];
 
-  missing.forEach((type, k) => {
-    const idx = candidates[k];
-    if (idx === undefined) return;
+  for (const type of missing) {
+    const pos = candidates.findIndex((idx) => {
+      const cur = nodes[idx]!.type;
+      // Nie die letzte Kopie eines garantierten Typs entfernen.
+      return !(GUARANTEED_NODE_TYPES.includes(cur) && (remaining.get(cur) ?? 0) <= 1);
+    });
+    if (pos === -1) continue;
+    const idx = candidates.splice(pos, 1)[0]!;
+    const cur = nodes[idx]!.type;
+    remaining.set(cur, (remaining.get(cur) ?? 1) - 1);
+    remaining.set(type, (remaining.get(type) ?? 0) + 1);
     nodes[idx] = { ...nodes[idx]!, type };
-  });
+  }
 };
 
 /** Anzahl Akte in einem kompletten Run. Sieg gegen Akt N-Boss = Game-Won. */

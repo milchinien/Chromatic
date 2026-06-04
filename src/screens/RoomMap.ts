@@ -8,7 +8,8 @@ import {
 import { getCurrentRun, setActiveEncounter } from '../systems/run/currentRun';
 import { encounterForSubNodeType } from '../systems/data/encounters';
 import { renderSubTile, subTileSize } from '../ui/SubTile';
-import { BG, bgUrl } from '../ui/backgrounds';
+import { BG, bgUrl, fitBg } from '../ui/backgrounds';
+import { saveRun } from '../systems/save/SaveService';
 
 const MAP_LEFT = 140;
 const MAP_RIGHT = 1140;
@@ -39,6 +40,9 @@ export const RoomMap: Screen = (host, ctx) => {
     host.innerHTML = '';
     return;
   }
+
+  // Auto-Save: Raum-Karte ist ebenfalls ein sicherer Punkt (nach Sub-Encounter).
+  saveRun(run);
 
   const visited = run.visitedRoomNodes.get(run.activeWorldNodeId) ?? new Set<string>();
   const reachable = new Set(reachableInRoom(run));
@@ -77,7 +81,7 @@ export const RoomMap: Screen = (host, ctx) => {
   const worldLabel = WORLD_TYPE_LABEL[room.worldNodeType] ?? room.worldNodeType;
 
   host.innerHTML = `
-    <div class="cm-fit"><div class="cm-screen" style="background-image:${bgUrl(BG.roommap!)}; background-size:cover; background-position:center;">
+    <div class="cm-fit" style="${fitBg(bgUrl(BG.roommap!))}"><div class="cm-screen">
       <div class="cm-hud">
         <div class="cm-hud-left">
           <div class="cm-act">

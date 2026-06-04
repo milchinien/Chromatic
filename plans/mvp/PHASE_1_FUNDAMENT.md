@@ -2,6 +2,8 @@
 
 **Dauer:** ½ Tag · **Risiko:** niedrig
 
+> ⚠️ **Kern-Leitplanken (Stand 2026-06):** Historischer MVP-Bau-Plan. Verbindlicher **aktueller Kern**: festes 25-Karten-Deck (kein Sammeln/Wachstum, nur Upgrades) · Mana = reine Anzeige ohne Mechanik · Shop upgradet (kein Kartenkauf) · DOM-Hybrid (kein Phaser). Details: [README → Kern-Leitplanken](../README.md#kern-leitplanken).
+
 ## Ziel
 
 Lauffähiges, leeres Projekt-Skelett mit funktionierendem Tooling, in dem das Hauptmenü auf eine leere Welt-Karte verlinkt.

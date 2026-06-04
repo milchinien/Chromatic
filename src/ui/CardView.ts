@@ -19,6 +19,9 @@ export interface CardViewOptions {
   selected?: boolean;
   /** Verdeckte Karten-Rückseite (die 5 zur Blind-Auswahl). */
   faceDown?: boolean;
+  /** Optionale feste Breite in px — überschreibt das size-Preset (z.B. Galerie,
+   *  die alle 25 Karten auf einen Bildschirm packt). Höhe folgt natürlich. */
+  width?: number;
 }
 
 // Klassen-Reihe in den Datei-Namen: r1 = Krieger (Mana 7) ... r5 = Heiler (Mana 3).
@@ -57,11 +60,19 @@ const cardImageUrl = (card: Card): string | undefined => {
  */
 export const renderCardView = (opts: CardViewOptions): HTMLElement => {
   const { card, affordable, size = 'md', troops, selected = false, faceDown = false } = opts;
-  // Aspect-Ratio matched die Quell-PNGs (174×304 ≈ 0.572 w/h), damit `cover`
-  // weder Top (Mana/Name) noch Bottom (Farb-/Klassen-Tag) abschneidet.
-  const dims = size === 'md' ? { w: 150, h: 262 } : { w: 110, h: 192 };
+  // Feste BREITE, natürliche HÖHE: die Quell-PNGs haben pro Klasse leicht
+  // unterschiedliche Seitenverhältnisse (~0.56–0.65 w/h). Ein festes Hochformat
+  // mit `cover` schnitt breitere Karten links/rechts ab. Stattdessen rendern wir
+  // das echte <img> mit width:100% / height:auto → die VOLLE Karte ist immer
+  // sichtbar (nichts beschnitten, nichts gestaucht). dims.h dient nur noch als
+  // Fallback-Höhe für die verdeckte Rückseite / fehlende Bilder.
+  const base = size === 'md' ? { w: 150, h: 262 } : { w: 110, h: 192 };
+  const dims = opts.width
+    ? { w: opts.width, h: Math.round((opts.width * base.h) / base.w) }
+    : base;
 
   const url = cardImageUrl(card);
+  const showImg = !faceDown && !!url;
   const back =
     'repeating-linear-gradient(45deg, #2a1d10, #2a1d10 8px, #34240f 8px, #34240f 16px)';
 
@@ -73,11 +84,13 @@ export const renderCardView = (opts: CardViewOptions): HTMLElement => {
   el.style.cssText = `
     position: relative;
     width: ${dims.w}px;
-    height: ${dims.h}px;
+    ${showImg ? '' : `height: ${dims.h}px;`}
     padding: 0;
     border: 0;
-    background: ${faceDown ? back : url ? `url(${url}) center/cover no-repeat` : 'var(--surface)'};
+    background: ${faceDown ? back : showImg ? 'transparent' : 'var(--surface)'};
     border-radius: 6px;
+    overflow: hidden;
+    line-height: 0;
     cursor: ${affordable ? 'pointer' : 'not-allowed'};
     opacity: ${affordable ? '1' : '0.5'};
     filter: ${affordable ? 'none' : 'grayscale(0.5)'};
@@ -85,6 +98,16 @@ export const renderCardView = (opts: CardViewOptions): HTMLElement => {
     transition: transform 120ms, filter 120ms, box-shadow 120ms;
     ${selRing}
   `;
+
+  // Volles Kartenbild als <img> — Browser behält das natürliche Seitenverhältnis.
+  if (showImg) {
+    const img = document.createElement('img');
+    img.src = url!;
+    img.alt = card.name;
+    img.draggable = false;
+    img.style.cssText = 'width:100%; height:auto; display:block; border-radius:6px;';
+    el.appendChild(img);
+  }
 
   // Verdeckte Rückseite: zentrales Glyph statt Karteninhalt.
   if (faceDown) {

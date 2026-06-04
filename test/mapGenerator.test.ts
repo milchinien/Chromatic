@@ -48,13 +48,13 @@ describe('MapGenerator', () => {
     expect(visited.has(map.bossNodeId)).toBe(true);
   });
 
-  it('enthält pro Akt mind. einen Shop, Schatz und Perk (über viele Seeds)', () => {
+  it('enthält pro Akt mind. einen Shop, Schatz, Perk und Elite (über viele Seeds)', () => {
     for (let act = 1; act <= 3; act++) {
       for (let seed = 0; seed < 200; seed++) {
         const types = new Set(generateAct(act, mulberry32(seed)).nodes.map((n) => n.type));
-        expect(types, `Akt ${act}, Seed ${seed}`).toContain('shop');
-        expect(types, `Akt ${act}, Seed ${seed}`).toContain('treasure');
-        expect(types, `Akt ${act}, Seed ${seed}`).toContain('perk');
+        for (const t of ['shop', 'treasure', 'perk', 'elite'] as const) {
+          expect(types, `Akt ${act}, Seed ${seed} → ${t}`).toContain(t);
+        }
       }
     }
   });
@@ -76,7 +76,6 @@ describe('MapGenerator', () => {
           "edges": [
             "n2_0",
             "n2_1",
-            "n2_2",
           ],
           "id": "n1_0",
           "layer": 1,
@@ -84,8 +83,8 @@ describe('MapGenerator', () => {
         },
         {
           "edges": [
-            "n2_0",
             "n2_1",
+            "n2_2",
           ],
           "id": "n1_1",
           "layer": 1,
@@ -111,11 +110,11 @@ describe('MapGenerator', () => {
         },
         {
           "edges": [
-            "n3_1",
+            "n3_0",
           ],
           "id": "n2_2",
           "layer": 2,
-          "type": "combat_normal",
+          "type": "elite",
         },
         {
           "edges": [

@@ -1,8 +1,13 @@
 import type { Screen } from '../router';
 import { clearCurrentRun, getCurrentRun } from '../systems/run/currentRun';
+import { clearSavedRun } from '../systems/save/SaveService';
 
 export const GameOver: Screen = (host, ctx) => {
   const run = getCurrentRun();
+
+  // Niederlage ist endgültig — Save sofort löschen, damit ein Refresh auf diesem
+  // Screen den verlorenen Run NICHT wieder ladbar macht.
+  clearSavedRun();
   const visited = run?.visitedNodes.size ?? 0;
   const coins = run?.coins ?? 0;
 

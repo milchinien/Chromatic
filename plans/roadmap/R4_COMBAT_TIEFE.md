@@ -2,23 +2,27 @@
 
 **Dauer:** ~1–2 Wochen · **Priorität:** mittel (abhängig davon, ob Combat im MVP zu seicht wirkt)
 
+> ⚠️ **Kern-Leitplanken (verbindlich):** Festes 25-Karten-Deck (kein Sammeln/Wachstum/Entfernen, nur Upgrades) · Mana = reine Anzeige ohne Mechanik · DOM-Hybrid. Details: [README → Kern-Leitplanken](../README.md#kern-leitplanken).
+>
+> **🔄 angepasst:** **❌ Mana-Banking** (KI) und **❌ Karten-Entfernung** (Schmiede) entfallen. **Status-Effekte bleiben**, werden aber als **Passive auf die bestehenden 25 Karten** gehängt — **keine neuen Karten**. Boss-KI nutzt Nicht-Mana-Heuristiken (Tempo, Konter, Combo-Wahl). Überschneidet sich teils mit **R7** (Karten-Passive).
+
 ## Ziel
 
-Combat-System um strategische Tiefe erweitern: bessere KI für Bosse, Karten-Entfernung, Karten-Upgrades, Status-Effekte. Macht Late-Game und wiederholte Runs interessanter.
+Combat strategisch vertiefen **ohne** Mana/neue Karten: klügere Boss-KI (Tempo/Konter), Status-Effekte als Passive auf bestehenden Karten, Karten-**Upgrade**-Tiefe. *(🔄 „Karten-Entfernung" ❌ entfällt — festes Deck.)*
 
 ## 🎯 Definition of Done — Hauptziel (Gate)
 
-> **Boss-Encounter zeigen erkennbar klügere KI (Mana-Banking, Konter, Tempo-Wechsel). Schmiede-Räume bieten Entfernen + Upgraden funktional. Mindestens 4 Status-Effekte sind in Karten-Pool integriert und im Combat sichtbar.**
+> **Boss-Encounter zeigen erkennbar klügere KI (Konter, Tempo-Wechsel, Combo-Wahl — ❌ kein Mana-Banking). Schmiede-/Shop-Räume bieten Upgraden funktional (❌ kein Entfernen). Mindestens 4 Status-Effekte sind als Passive auf bestehenden Karten integriert und im Combat sichtbar.**
 
 Diese Phase gilt **erst dann als abgeschlossen**, wenn dieses Hauptziel **bug-frei** implementiert ist. Konkret:
 
 - Boss-KI gewinnt > 40% gegen Standard-Decks (Test-Fixture mit 100 Sim-Combats)
 - Boss-KI ist subjektiv „herausfordernder" als normale Encounter (Playtest)
-- Schmiede-Raum: Entfernen + Upgrade funktional, Deck-Update persistiert
+- Schmiede-/Shop-Raum: **Upgrade** funktional, Deck-Update persistiert *(❌ „Entfernen" entfällt — festes Deck)*
 - Upgegradete Karten haben goldenen Rahmen in Hand und Deck-View
 - Mindestens 4 Status-Effekte (Burn, Frost, Schild, Poison) implementiert + visualisiert
 - Status-Icons über Units lesbar und korrekt aktualisiert
-- Mindestens 1 neue Karte pro Status-Effekt im Pool
+- Status-Effekte als **Passive auf bestehende Karten** gehängt *(❌ „1 neue Karte pro Status-Effekt" entfällt — keine neuen Karten)*
 - TAB öffnet Deck-View ohne Crash, schließt sauber
 - Tests grün (statusEffectSystem, bossAi, cardForge)
 - Browser-Console: 0 Errors, 0 Warnings
@@ -39,20 +43,16 @@ Diese Phase gilt **erst dann als abgeschlossen**, wenn dieses Hauptziel **bug-fr
 
 ### 1. Verbesserte Boss-KI (3 Tage)
 - [ ] Aktuelle MVP-KI: einfacher Heuristik-Agent
-- [ ] Für Boss-Encounter: tiefere Logik
+- [ ] Für Boss-Encounter: tiefere Logik (🔄 ohne Mana)
   - Reaktive Karten-Wahl: erkennt Spieler-Farb-Fokus, kontert mit passenden Farben
-  - Mana-Banking: spart Mana für Combo-Plays statt sofort zu spielen
+  - ❌ ~~Mana-Banking~~ — entfällt (Mana ist Deko). Stattdessen: gezielte **Combo-Wahl** (priorisiert Farb-/Klassen-Paare) + **Linien-Wahl** (Front/Hinten je nach Lage)
   - Tempo-Wechsel: aggressiv wenn vorne, defensiv wenn hinten
 - [ ] Optional: Monte-Carlo-Tree-Search (MCTS) für Endboss — simuliert N Spielverläufe pro Entscheidung
 - [ ] Test-Fixture: 100 Boss-Kämpfe simulieren, Win-Rate des Bosses sollte > 40% gegen Durchschnitts-Spieler-Deck sein
 
-### 2. Karten-Entfernung (Schmiede-Räume, 2 Tage)
-- [ ] Aktuell: Deck wächst monoton, kann unhandlich werden
-- [ ] Neuer Knoten-Typ `forge`:
-  - 2 Optionen: „Karte entfernen" (50 Coins) ODER „Karte upgraden" (siehe Punkt 3)
-  - Entfernen: Spieler wählt eine Karte aus seinem Deck zum permanenten Löschen
-  - 1× pro Akt verfügbar (begrenzt, weil mächtig)
-- [ ] Verlangt UI für „Deck-Übersicht" — wiederverwendbar für TAB-Inventar
+### 2. ❌ ~~Karten-Entfernung (Schmiede-Räume)~~ — ENTFÄLLT
+> Das Deck ist **fix (25 Karten)** und wächst/schrumpft nie. Es gibt kein „unhandliches" Deck. **Stattdessen** (passt zum Kern): ein **Deck-Übersicht-Screen** (TAB-Inventar) der alle Karten + Level zeigt — reine Ansicht, keine Entfernung.
+- [ ] Deck-Übersicht (TAB) als reine Ansicht (wiederverwendbar), kein Entfernen
 
 ### 3. Karten-Upgrades (3 Tage)
 - [ ] Jede Karte hat optional ein `upgrade`-Feld: Statistik-Boost ODER neue Passive
@@ -87,12 +87,11 @@ Diese Phase gilt **erst dann als abgeschlossen**, wenn dieses Hauptziel **bug-fr
   ```
 - [ ] `StatusEffectSystem.tick(state, dt)` — neue Tick-Phase im Combat-Loop
 - [ ] Passive-Trigger-Erweiterung um `onApplyStatus`
-- [ ] Karten-Erweiterung: neue Passives die Status verteilen (z. B. Magier-Karte „Inferno": brennt alle Gegner in der Nähe)
+- [ ] Status-Passive auf **bestehende** Karten hängen (z. B. Magier brennt nahe Gegner, Stein-Festung gibt Schild) — **❌ keine neuen Karten**
 - [ ] UI: kleine Icons über Units zeigen aktive Status (max 3 Slots sichtbar, Rest unter „+N")
 
-### 5. Karten-Pool um Status-Effekt-Karten ergänzen (2 Tage)
-- [ ] Mindestens 1–2 neue Karten pro Status-Effekt
-- [ ] Balance-Pass
+### 5. ❌ ~~Karten-Pool um Status-Effekt-Karten ergänzen~~ — ENTFÄLLT
+> Keine neuen Karten (festes Deck). Status-Effekte kommen als **Passive auf den bestehenden 25 Karten** (siehe Schritt 4 und R7). Nur Balance-Pass nötig.
 
 ### 6. Tests
 - [ ] `test/statusEffectSystem.test.ts` — alle Effekte verhalten sich korrekt
@@ -140,8 +139,8 @@ src/
 
 ## Akzeptanz-Test
 
-1. Run starten, gegen Akt-3-Boss spielen → KI spielt sichtbar klüger als normale Encounter
-2. Schmiede-Raum besuchen → Optionen „Entfernen" und „Upgraden" verfügbar
+1. Run starten, gegen Akt-3-Boss spielen → KI spielt sichtbar klüger (Konter/Tempo/Combo, ❌ kein Mana-Banking)
+2. Shop/Schmiede-Raum besuchen → **Upgrade** verfügbar *(❌ „Entfernen" entfällt)*; TAB öffnet Deck-Übersicht
 3. Karte upgraden → goldener Rahmen in Deck-View und im Combat
 4. Karte mit Burn-Passive spielen → Gegner brennt, DoT-Damage sichtbar, Status-Icon erscheint
 5. Karte mit Frost spielen → Gegner-Bewegung sichtbar verlangsamt
@@ -156,8 +155,8 @@ src/
 - [ ] Hauptziel (oben) bug-frei erfüllt
 - [ ] Akzeptanz-Test komplett grün durchgelaufen
 - [ ] Boss-KI > 40% Win-Rate im 100-Sim-Combat-Test
-- [ ] Alle Status-Effekte einzeln im Combat sichtbar verifiziert
-- [ ] Schmiede-Funktionen (Entfernen + Upgrade) bug-frei
+- [ ] Alle Status-Effekte einzeln im Combat sichtbar verifiziert (als Passive auf bestehenden Karten)
+- [ ] Upgrade-Funktion bug-frei + Deck-Übersicht (TAB) *(❌ „Entfernen" entfällt)*
 - [ ] `pnpm test` — alle Tests grün
 - [ ] `pnpm lint` — keine Errors
 - [ ] `pnpm build` — läuft fehlerfrei

@@ -12,6 +12,20 @@ Die Dateien in diesem Ordner sind die **ausführbaren Pläne** — wenn du eine 
 
 ---
 
+## Kern-Leitplanken
+
+**Verbindlich für ALLE Pläne (Stand 2026-06).** Mehrere Pläne wurden ursprünglich unter einem früheren Design (wachsendes Deck, echte Mana-Ressource, Karten-Sammeln) geschrieben. Der **aktuelle, ausgelieferte Spiel-Kern** ist anders und bleibt fix. Kein Plan darf diese Prinzipien aufweichen:
+
+1. **Festes Deck — 25 Karten (5 Klassen × 5 Farben).** Das Deck **wächst nie**: kein Karten-Sammeln, keine Karten-Drops, keine Choice-/Belohnungs-Karten, keine Karten-Entfernung, kein ≥40-Karten-Pool. Fortschritt ausschließlich über **Karten-Upgrades** (Level erhöht Stats + Truppen-Range).
+2. **Mana ist reine Anzeige-Deko ohne Mechanik.** Kein Mana-Gating, kein Mana-Banking (auch nicht in der KI), keine Mana-Befehle, keine „+Mana"-Effekte als echte Ressource. Die Bar darf sichtbar bleiben (Flavor), beeinflusst aber nichts.
+3. **Ökonomie = Upgrades.** Der Shop **upgradet** eigene Deck-Karten (kein Kartenkauf). Schatz-/Boss-/Event-Belohnungen geben **Coins, Heilung oder Upgrades** — niemals neue Karten.
+4. **Combat-Kern bleibt unverändert:** rundenbasiert (5 verdeckt → blind 3 picken → 2 spielen), Combo über geteilte **Farbe/Klasse** (armee-weiter Buff), **Front/Hinten-Linien**, EXP/Level-Up **im Kampf**, **endlos eskalierende** Akte, **Akt-Farbe per Boss-Auswahl**, mono-farbige Gegner-Decks.
+5. **Architektur:** DOM + Vanilla-Canvas-Hybrid (kein Phaser). „Scene"/`scene.start()` in Plänen mental als DOM-Screen / `ctx.go('name')` lesen.
+
+In den einzelnen Plänen sind widersprechende Punkte mit **🔄 angepasst** (umgedeutet, damit es zum Kern passt) bzw. **❌ entfällt** (gestrichen) markiert.
+
+---
+
 ## 🚧 Gating-Prinzip (verbindlich)
 
 **Jede Phase hat genau ein „Hauptziel" das bug-frei implementiert sein muss, bevor die nächste Phase beginnt.**
@@ -57,6 +71,7 @@ Bei vorhandenen, aber **nicht** ziel-blockierenden Bugs (Schweregrad „niedrig"
 | R4 | Combat-Tiefe | [roadmap/R4_COMBAT_TIEFE.md](roadmap/R4_COMBAT_TIEFE.md) | 1–2 Wochen |
 | R5 | Präsentation | [roadmap/R5_PRAESENTATION.md](roadmap/R5_PRAESENTATION.md) | offen (asset-getrieben) |
 | R6 | Reichweite | [roadmap/R6_REICHWEITE.md](roadmap/R6_REICHWEITE.md) | offen |
+| R7 | Immersion & Spannung (Combat-Feel) | [roadmap/R7_IMMERSION_SPANNUNG.md](roadmap/R7_IMMERSION_SPANNUNG.md) | 2–3 Wochen |
 
 Die Roadmap-Phasen sind **nach Priorität** sortiert, nicht nach harter Abhängigkeit. R1 sollte direkt nach dem MVP kommen, weil Save & Tutorial die größten UX-Lücken sind. R5/R6 sind die letzten Schritte vor einem öffentlichen Release.
 

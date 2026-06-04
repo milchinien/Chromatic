@@ -5,7 +5,7 @@ import { sfx } from '../systems/audio';
 import { PERKS, applyPerkOnChoose } from '../systems/data/perks';
 import { mulberry32 } from '../systems/rng';
 import type { Perk } from '../domain/Run';
-import { BG, bgUrl } from '../ui/backgrounds';
+import { BG, bgUrl, fitBg } from '../ui/backgrounds';
 
 const NUM_OFFERS = 3;
 
@@ -59,7 +59,7 @@ export const PerkSelect: Screen = (host, ctx) => {
   let selectedIdx = already ? offers.findIndex((p) => p.id === already) : -1;
 
   host.innerHTML = `
-    <div class="cm-fit"><div class="cm-screen" style="background-image:${bgUrl(BG.perk!)}; background-size:cover; background-position:center;">
+    <div class="cm-fit" style="${fitBg(bgUrl(BG.perk!))}"><div class="cm-screen">
       <div class="cm-hud">
         <div class="cm-hud-left">
           <div class="cm-act">

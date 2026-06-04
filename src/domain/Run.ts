@@ -7,7 +7,15 @@ export interface DeckEntry {
   readonly level: number;
 }
 
-export type NodeType = 'start' | 'combat_normal' | 'combat_hard' | 'shop' | 'treasure' | 'perk' | 'boss';
+export type NodeType =
+  | 'start'
+  | 'combat_normal'
+  | 'combat_hard'
+  | 'elite'
+  | 'shop'
+  | 'treasure'
+  | 'perk'
+  | 'boss';
 
 export interface MapNode {
   readonly id: string;

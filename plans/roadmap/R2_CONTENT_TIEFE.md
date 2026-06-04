@@ -2,22 +2,26 @@
 
 **Dauer:** ~2–3 Wochen · **Priorität:** hoch
 
+> ⚠️ **Kern-Leitplanken (verbindlich):** Festes 25-Karten-Deck (kein Sammeln/Wachstum, nur Upgrades) · Mana = reine Anzeige ohne Mechanik · Shop upgradet (kein Kartenkauf) · DOM-Hybrid (kein Phaser). Details: [README → Kern-Leitplanken](../README.md#kern-leitplanken).
+>
+> **🔄 R2 stark angepasst:** Dieser Plan war ursprünglich auf **Karten-Sammeln** ausgelegt — das widerspricht dem festen Deck und bräuchte zudem 40+ neue Karten-Art-PNGs (existieren nicht). Daher **❌ entfällt**: ≥40-Karten-Pool, Rarity-Drop-System, Choice-Knoten (Karten hinzufügen), Karten-Drop-Pools pro Encounter. **Content-Tiefe kommt stattdessen** aus: Akt-2/3-Politur, besserer Map-Generierung sowie **Event-** und **Elite-Knoten** (Belohnungen = Coins/Heilung/Upgrades, **nie** Karten).
+
 ## Ziel
 
-Das Spiel von einer einzigen Akt-Wiederholung zu einem echten Roguelite mit Replay-Value ausbauen: mehr Karten, mehrere Akte, bessere Map-Generierung, mehr Encounter-Variation.
+Mehr Replay-Value **ohne** das feste Deck anzutasten: mehrere Akte mit eskalierender Schwierigkeit, bessere Map-Generierung, sowie neue **Event-** und **Elite-Knoten**. *(Ursprüngliches Ziel „mehr Karten" ❌ entfällt — Kern: festes 25-Karten-Deck.)*
 
 ## 🎯 Definition of Done — Hauptziel (Gate)
 
-> **3 Akte sind nahtlos hintereinander spielbar mit eskalierender Schwierigkeit. Karten-Pool ≥ 40 Karten mit funktionierendem Rarity-System. Map-Generator erzeugt mit verschiedenen Seeds visuell und strategisch unterschiedliche Karten, die alle Constraints erfüllen.**
+> **3 Akte sind nahtlos hintereinander spielbar mit eskalierender Schwierigkeit. Map-Generator erzeugt mit verschiedenen Seeds visuell und strategisch unterschiedliche Karten, die alle Constraints erfüllen. Event- und Elite-Knoten bereichern jeden Akt.** *(🔄 „Karten-Pool ≥ 40 + Rarity-System" ❌ entfällt — festes 25-Karten-Deck.)*
 
 Diese Phase gilt **erst dann als abgeschlossen**, wenn dieses Hauptziel **bug-frei** implementiert ist. Konkret:
 
 - Akt 1 → 2 → 3 läuft ohne Crashes, Schwierigkeit eskaliert messbar (KI-Mana, Gegner-Stats)
 - Jeder Akt hat einen erkennbar anderen Boss-Stil
-- Karten-Pool ≥ 40 Karten, balanciert (keine offensichtlich überpowered / nutzlosen Karten)
-- Rarity-Verteilung statistisch korrekt (Test mit 1000 Draws bestätigt)
-- Map-Generator-Constraints: jeder Pfad enthält mind. 1 Schatz, jeder Akt enthält mind. 1 Shop und 1 Perk-Raum, Pfade kreuzen sich nicht
-- Event- und Choice-Knoten funktional, alle Outcomes getestet
+- ❌ ~~Karten-Pool ≥ 40 Karten~~ — entfällt (festes 25-Karten-Deck)
+- ❌ ~~Rarity-Verteilung (1000 Draws)~~ — entfällt (keine Karten-Drops)
+- Map-Generator-Constraints: jeder Pfad enthält mind. 1 Schatz, jeder Akt enthält mind. 1 Shop und 1 Perk-Raum, Pfade kreuzen sich nicht *(Schatz-/Shop-/Perk-Garantien bereits in `MapGenerator.ts`/`RoomMapGenerator.ts` umgesetzt)*
+- **Event-** und **Elite-Knoten** funktional, alle Outcomes getestet *(🔄 „Choice-Knoten zum Karten-Hinzufügen" ❌ entfällt → stattdessen Event-Knoten mit Coins/Heilung/Perk-Outcomes)*
 - Mindestens 3 komplette 3-Akt-Runs durchgespielt
 - Tests grün (mapGeneratorV2, rarityDrop)
 - Browser-Console: 0 Errors, 0 Warnings
@@ -47,15 +51,9 @@ Diese Phase gilt **erst dann als abgeschlossen**, wenn dieses Hauptziel **bug-fr
   - Akt 3: neuer Boss-Design (z. B. „Multi-Farben-Generalist" mit großem Deck)
 - [ ] VictoryScene erweitert: nach Akt-Sieg Wahl „Weiter zu Akt N+1" oder „Aufhören (Run beenden)"
 
-### 2. Karten-Pool auf ~40–60 Karten ausbauen (1 Woche)
-- [ ] Pro Farbe ~10 Karten, pro Klasse ~8 Karten
-- [ ] **Rarity-System aktiv schalten:**
-  - `common` (40%), `rare` (15%), `epic` (5%) in Drop-Wahrscheinlichkeit
-  - Shop zeigt rarity-gewichteten Pool
-  - Schwere Kämpfe / Mini-Bosse können `rare` droppen
-  - Endbosse droppen garantiert `epic`
-- [ ] Karten-Daten-Tooling: Idealerweise `cards.ts` aus einer CSV/JSON-Datei generieren, damit Designer ohne TypeScript-Knowledge editieren können
-- [ ] Karten-Balance-Pass: jede neue Karte mit existierenden im Sandbox-Modus getestet
+### 2. ❌ ~~Karten-Pool auf ~40–60 Karten ausbauen~~ — ENTFÄLLT
+> Widerspricht dem festen 25-Karten-Deck und bräuchte 40+ neue Art-PNGs. **Stattdessen** (passt zum Kern): Balance-Politur der bestehenden 25 Karten + ihrer **Upgrade-Kurven** (`balance.ts`), damit jede Karte eine Rolle hat. Kein Rarity-Drop, kein CSV-Karten-Generator, kein neuer Karten-Content.
+- [ ] Balance-Pass der 25 bestehenden Karten + Upgrade-Skalierung im Sandbox-Modus
 
 ### 3. Constraint-basierte Map-Generierung (3 Tage)
 - [ ] Aktueller MapGenerator: einfacher Layered-Random
@@ -67,16 +65,14 @@ Diese Phase gilt **erst dann als abgeschlossen**, wenn dieses Hauptziel **bug-fr
   - Perk-Raum mindestens 1× pro Akt
 - [ ] Snapshot-Tests für mehrere Seeds, Lesbarkeits-Test (Karten sehen interessant aus, nicht nur linear)
 
-### 4. Neue Encounter- und Sub-Knoten-Typen (3 Tage)
-- [ ] **Elite-Combat**: zwischen normalem Kampf und Boss, gibt überdurchschnittliche Belohnung
-- [ ] **Event-Knoten**: textbasiertes Mini-Ereignis mit 2–3 Auswahlmöglichkeiten („Du findest einen alten Magier — willst du 100 Coins gegen einen Perk tauschen?")
-- [ ] **Choice-Knoten**: Spieler wählt zwischen 3 unterschiedlichen Karten zum kostenlosen Hinzufügen
-- [ ] Eigene Szenen pro Typ, gleiche Architektur wie Shop/Treasure
+### 4. Neue Knoten-Typen (3 Tage) — **Kern dieser angepassten R2**
+- [ ] **Elite-Combat**: zwischen normalem Kampf und Boss, härter, gibt überdurchschnittliche **Coin-Belohnung + gratis Karten-Upgrade** (keine neue Karte)
+- [ ] **Event-Knoten**: textbasiertes Mini-Ereignis mit 2–3 Auswahlmöglichkeiten. Outcomes nur aus dem Kern-Ökonomie-Repertoire: **Coins, Heilung, Perk, gratis Upgrade, Risiko/Belohnung** („Ein alter Magier bietet: 100 Coins gegen einen Perk?"). **❌ niemals Karten-Drops.**
+- [ ] ❌ ~~Choice-Knoten (3 Karten kostenlos hinzufügen)~~ — entfällt (festes Deck)
+- [ ] Eigene DOM-Screens pro Typ (`src/screens/Event.ts`, `Elite` als Encounter-Variante), gleiche Architektur wie Shop/Treasure; in `MapGenerator` als neue `NodeType` integrieren
 
-### 5. Karten-Drop-Pool pro Encounter-Typ (1 Tag)
-- [ ] `encounters.ts` definiert pro Encounter ein eigenes `cardDropPool`
-- [ ] Bestimmte Karten droppen nur aus bestimmten Encountern (z. B. „Schatten-Schwingen" nur aus Untot-Boss)
-- [ ] Belohnt thematisches Run-Building
+### 5. ❌ ~~Karten-Drop-Pool pro Encounter-Typ~~ — ENTFÄLLT
+> Es gibt keine Karten-Drops (festes Deck). Thematisches Run-Building läuft über **Akt-Farbe** (Boss-Auswahl) + **Upgrade-Schwerpunkte** im Shop, nicht über Karten-Sammeln.
 
 ### 6. Tests
 - [ ] `test/mapGeneratorV2.test.ts` — Constraint-Tests (Schatz-Garantie, Pfad-Anzahl, kein Cross)
@@ -129,12 +125,12 @@ tools/
 ## Akzeptanz-Test
 
 1. Run starten, alle 3 Akte hintereinander durchspielen → Schwierigkeit eskaliert sichtbar
-2. In jedem Akt mind. 1× einen Event-Knoten getroffen → 2–3 Optionen mit jeweils unterschiedlichem Outcome
-3. Choice-Knoten getroffen → 3 Karten zur Wahl, eine wird ins Deck übernommen
-4. Mindestens 1× eine Epic-Karte aus einem Boss bekommen
+2. In jedem Akt mind. 1× einen Event-Knoten getroffen → 2–3 Optionen mit jeweils unterschiedlichem Outcome (Coins/Heilung/Perk/Upgrade)
+3. Elite-Knoten getroffen → härterer Kampf, überdurchschnittliche Coin/Upgrade-Belohnung *(❌ Choice-Karten-Knoten entfällt)*
+4. ❌ ~~Epic-Karte aus Boss~~ — entfällt (Boss gibt Coins + gratis Upgrade)
 5. Map-Generator: 5 verschiedene Seeds → 5 visuell deutlich unterschiedliche Karten, alle mit Schatz/Shop garantiert
 6. Alle neuen Test-Files grün
-7. Karten-Tabelle (40–60 Stück) liegt in einer maintainbaren Quelle vor
+7. ❌ ~~Karten-Tabelle (40–60 Stück)~~ — entfällt (festes 25-Karten-Deck)
 
 ---
 
@@ -143,7 +139,8 @@ tools/
 - [ ] Hauptziel (oben) bug-frei erfüllt
 - [ ] Akzeptanz-Test komplett grün durchgelaufen
 - [ ] Mindestens 3 komplette 3-Akt-Runs durchgespielt
-- [ ] Karten-Pool ≥ 40 Karten, alle balanciert getestet (keine offensichtlichen Overpowered/Useless)
+- [ ] ❌ ~~Karten-Pool ≥ 40~~ — stattdessen: die 25 bestehenden Karten + Upgrade-Kurven balanciert
+- [ ] Event-/Elite-Knoten funktional, alle Outcomes getestet (keine Karten-Drops)
 - [ ] Map-Generator-Constraints alle eingehalten (mehrere Seeds verglichen)
 - [ ] `pnpm test` — alle Tests grün
 - [ ] `pnpm lint` — keine Errors

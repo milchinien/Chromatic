@@ -2,6 +2,10 @@
 
 **Dauer:** ~1 Woche · **Priorität:** sehr hoch (erste Post-MVP-Phase)
 
+> ⚠️ **Kern-Leitplanken (verbindlich):** Festes 25-Karten-Deck (kein Sammeln/Wachstum, nur Upgrades) · Mana = reine Anzeige ohne Mechanik · Shop upgradet (kein Kartenkauf) · DOM-Hybrid (kein Phaser). Stellen, die dem widersprechen, sind **🔄 angepasst** / **❌ entfällt** markiert. Details: [README → Kern-Leitplanken](../README.md#kern-leitplanken).
+>
+> **Status:** Save-System ist bereits umgesetzt (`src/systems/save/SaveService.ts`, Auto-Save auf Welt-/Raum-Karte, „Fortsetzen" im Hauptmenü, Tests grün). Tutorial bewusst zurückgestellt.
+
 ## Ziel
 
 Die zwei größten UX-Lücken des MVP schließen: Spieler verlieren nicht mehr ihren Run-Fortschritt bei Browser-Refresh, und neue Spieler verstehen den Combat ohne externes Wissen.
@@ -65,12 +69,12 @@ Diese Phase gilt **erst dann als abgeschlossen**, wenn dieses Hauptziel **bug-fr
   - Mit `nextStep()` und `skipTutorial()` versehen
   - Pfeile auf wichtige UI-Elemente, kurze Text-Bubbles
   - Combat-Pause während Overlay sichtbar
-- [ ] Tutorial-Schritte:
-  - „Klicke eine Karte, um eine Einheit zu spawnen"
-  - „Diese Leiste ist dein Mana — Karten kosten Mana"
-  - „Zwei Einheiten gleicher Farbe verstärken sich gegenseitig" (im 2. Combat)
+- [ ] Tutorial-Schritte (🔄 an aktuellen Combat-Kern angepasst):
+  - „Pro Runde ziehst du 5 verdeckte Karten — **picke blind 3** davon"
+  - „Die 3 werden aufgedeckt — **spiele 2**: erste = Frontlinie, zweite = Hintergrundlinie. Sie ziehen als Truppen-Stacks ins Feld" *(❌ kein Mana-Schritt — Mana ist reine Anzeige)*
+  - „Teilen deine 2 gespielten Karten **Farbe oder Klasse**, verstärkt der Combo die **ganze Armee**" (im 2. Combat)
   - „Verliere keine Base-HP — die persistiert über alle Kämpfe"
-  - „Im Shop kannst du Karten kaufen"
+  - „Im **Shop upgradest** du deine Deck-Karten (kein Kartenkauf — das Deck wächst nie)"
   - „Perks gelten bis zum Run-Ende"
 - [ ] Hauptmenü-Button „TUTORIAL" (separat von „SPIELEN"), wird beim ersten Start automatisch hervorgehoben (LocalStorage-Flag `hasPlayedTutorial`)
 

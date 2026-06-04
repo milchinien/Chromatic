@@ -2,6 +2,10 @@
 
 **Dauer:** 3–4 Tage · **Risiko:** **HOCH** — hier entscheidet sich, ob das Spiel funktioniert
 
+> ⚠️ **Kern-Leitplanken (Stand 2026-06):** Historischer MVP-Bau-Plan. Verbindlicher **aktueller Kern**: festes 25-Karten-Deck (kein Sammeln/Wachstum, nur Upgrades) · Mana = reine Anzeige ohne Mechanik · Shop upgradet (kein Kartenkauf) · DOM-Hybrid (kein Phaser). Details: [README → Kern-Leitplanken](../README.md#kern-leitplanken).
+>
+> **🔄 Hinweis:** Falls Mana hier als spielbare Ressource (Kosten-Gate) gebaut wurde — im finalen Kern ist Mana **reine Deko ohne Funktion**. Combat ist rundenbasiert (5 verdeckt → blind 3 → spiele 2), nicht mana-gated.
+
 ## Ziel
 
 Isolierter, in sich abgeschlossener Combat ohne Run-Kontext. Alles hardcoded. Zwei Seiten kämpfen mit ~10 Karten gegeneinander, Combo-System wirkt sichtbar, eine Seite gewinnt. **Combat-Feel muss tragen, bevor irgendetwas anderes gebaut wird.**

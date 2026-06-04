@@ -2,6 +2,10 @@
 
 **Dauer:** 2 Tage · **Risiko:** niedrig
 
+> ⚠️ **Kern-Leitplanken (Stand 2026-06):** Historischer MVP-Bau-Plan. Verbindlicher **aktueller Kern**: festes 25-Karten-Deck (kein Sammeln/Wachstum, nur Upgrades) · Mana = reine Anzeige ohne Mechanik · Shop upgradet (kein Kartenkauf) · DOM-Hybrid (kein Phaser). Details: [README → Kern-Leitplanken](../README.md#kern-leitplanken).
+>
+> **🔄 Wichtig:** Der Titel „Deck-Wachstum" ist überholt. Im finalen Design **wächst das Deck NIE** — „Karten kaufen/sammeln" wurde durch ein **reines Upgrade-Modell** ersetzt (Shop/Schatz/Boss geben nur Coins, Heilung, Karten-**Upgrades**). Lies diesen Plan entsprechend.
+
 ## Ziel
 
 Der Spieler kann sein Deck im Laufe eines Runs erweitern: durch Karten-Kauf im Shop und durch Belohnungen aus Schatz-Räumen. Die hinzugefügten Karten werden in folgenden Combat-Encountern tatsächlich gezogen.

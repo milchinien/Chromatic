@@ -2,6 +2,10 @@
 
 **Dauer:** offen · **Priorität:** niedrig (Release-Phase, nicht Entwicklung)
 
+> ⚠️ **Kern-Leitplanken (verbindlich):** Festes 25-Karten-Deck · Mana = reine Anzeige · DOM-Hybrid. Details: [README → Kern-Leitplanken](../README.md#kern-leitplanken).
+>
+> **Hinweis:** Plattform-Themen (Steam/Mobile/i18n) berühren den Kern nicht. **Ausnahme:** „Karten-Mods, die den Pool erweitern" sind eine **optionale Mod-only-Abweichung** — das **Vanilla-Spiel bleibt beim festen 25-Karten-Deck**. Mods sind explizit als Nicht-Kern markiert.
+
 ## Ziel
 
 Das Spiel aus dem Browser raus und auf etablierte Plattformen bringen: Steam-Release, Mobile-Port, ggf. Mod-Support für Community-Content.
@@ -17,7 +21,7 @@ Diese Phase gilt **erst dann als abgeschlossen**, wenn dieses Hauptziel **bug-fr
 - (falls Mobile) Build läuft auf realem iPhone + Android-Phone, Touch-Steuerung ohne Hover-Bugs
 - Alle UI-Texte über i18n-System abrufbar, DE und EN vollständig übersetzt
 - Lokalisierungs-Wechsel zur Laufzeit funktioniert
-- (falls Mods) ein Test-Mod ergänzt eine Karte, erscheint im Pool, kein Crash
+- (falls Mods) ein Test-Mod ergänzt eine Karte, erscheint im Pool, kein Crash *(🔄 Mod-only-Abweichung — Vanilla bleibt beim festen 25-Karten-Deck)*
 - Keine offenen Release-Blocker-Bugs
 - Alle Dependency-Lizenzen geprüft und in Credits dokumentiert
 - DSGVO-Hinweis (falls Telemetrie) korrekt platziert
