@@ -181,6 +181,26 @@ body {
 .cm-coin svg { width: 16px; height: 16px; }
 .cm-coin-val { font-family: "JetBrains Mono", monospace; font-size: 16px; color: var(--gold-hi); letter-spacing: 0.05em; }
 
+/* Plakette-Variante (coin-frame.png als Hintergrund). Das Coin-Medaillon ist
+   links ins Bild eingebacken; die Zahl steht rechts im braunen Feld.
+   Maße/Padding sind Startwerte — werden mit dem echten Asset feinjustiert. */
+.cm-coin-plaque {
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+  width: 172px;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Zahl ins braune Feld zentrieren — links sitzt das eingebackene Medaillon.
+     FESTE px (Prozent-Padding bezöge sich auf die Elternbreite, nicht die Box). */
+  padding-left: 50px;
+  padding-right: 16px;
+  box-sizing: border-box;
+}
+.cm-coin-plaque .cm-coin-val { font-size: 17px; }
+
 .cm-hp-pill {
   display: flex; align-items: center; gap: 10px;
   padding: 8px 14px;

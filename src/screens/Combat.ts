@@ -47,6 +47,8 @@ import { renderCardView } from '../ui/CardView';
 import { renderHpBar } from '../ui/HpBar';
 import { renderManaBar } from '../ui/ManaBar';
 import { bgUrl, combatBgForAct, fitBg } from '../ui/backgrounds';
+import { recordBossBeaten } from '../systems/save/MetaSave';
+import { showAchievementToast } from '../ui/toast';
 
 /**
  * Combat-Screen — RUNDENBASIERT.
@@ -427,7 +429,12 @@ export const Combat: Screen = (host, ctx) => {
           markNodeVisited(run, run.activeWorldNodeId);
           exitRoom(run);
         }
-        if (isBossEncounter) markNodeVisited(run, run.currentNodeId);
+        if (isBossEncounter) {
+          markNodeVisited(run, run.currentNodeId);
+          // Meta-Progression: Akt-Boss besiegt (run.actNumber = gerade geschlagener
+          // Akt; advanceToNextAct läuft erst beim „Weiter"-Klick).
+          for (const a of recordBossBeaten(run.actNumber)) showAchievementToast(a.name, a.desc);
+        }
         // Elite ist ein direkter Welt-Knoten-Kampf (keine Sub-Map) → hier markieren.
         if (isEliteEncounter) markNodeVisited(run, run.currentNodeId);
       } else {

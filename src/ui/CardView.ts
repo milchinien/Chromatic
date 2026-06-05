@@ -60,16 +60,15 @@ const cardImageUrl = (card: Card): string | undefined => {
  */
 export const renderCardView = (opts: CardViewOptions): HTMLElement => {
   const { card, affordable, size = 'md', troops, selected = false, faceDown = false } = opts;
-  // Feste BREITE, natürliche HÖHE: die Quell-PNGs haben pro Klasse leicht
-  // unterschiedliche Seitenverhältnisse (~0.56–0.65 w/h). Ein festes Hochformat
-  // mit `cover` schnitt breitere Karten links/rechts ab. Stattdessen rendern wir
-  // das echte <img> mit width:100% / height:auto → die VOLLE Karte ist immer
-  // sichtbar (nichts beschnitten, nichts gestaucht). dims.h dient nur noch als
-  // Fallback-Höhe für die verdeckte Rückseite / fehlende Bilder.
-  const base = size === 'md' ? { w: 150, h: 262 } : { w: 110, h: 192 };
-  const dims = opts.width
-    ? { w: opts.width, h: Math.round((opts.width * base.h) / base.w) }
-    : base;
+  // Feste BOX (gleiche Größe für ALLE Karten) + `object-fit: contain`:
+  // Die Quell-PNGs haben pro Klasse leicht unterschiedliche Seitenverhältnisse
+  // (~0.56–0.65 w/h). `cover` schnitt breitere Karten seitlich ab; natürliche
+  // Höhe machte Karten verschieden hoch. `contain` in einer einheitlichen Box
+  // zeigt die VOLLE Karte (nichts beschnitten) und hält alle Karten GLEICH GROSS
+  // — schmalere/breitere Karten bekommen einen kleinen, zentrierten Rand.
+  const CARD_ASPECT_WH = 150 / 250; // Ziel-Seitenverhältnis der Box (~0.60)
+  const w = opts.width ?? (size === 'md' ? 150 : 110);
+  const dims = { w, h: Math.round(w / CARD_ASPECT_WH) };
 
   const url = cardImageUrl(card);
   const showImg = !faceDown && !!url;
@@ -84,7 +83,7 @@ export const renderCardView = (opts: CardViewOptions): HTMLElement => {
   el.style.cssText = `
     position: relative;
     width: ${dims.w}px;
-    ${showImg ? '' : `height: ${dims.h}px;`}
+    height: ${dims.h}px;
     padding: 0;
     border: 0;
     background: ${faceDown ? back : showImg ? 'transparent' : 'var(--surface)'};
@@ -99,13 +98,15 @@ export const renderCardView = (opts: CardViewOptions): HTMLElement => {
     ${selRing}
   `;
 
-  // Volles Kartenbild als <img> — Browser behält das natürliche Seitenverhältnis.
+  // Volles Kartenbild als <img>, `contain` → komplette Karte sichtbar, in einer
+  // einheitlich großen Box zentriert (kein Beschnitt, gleiche Größe wie alle).
   if (showImg) {
     const img = document.createElement('img');
     img.src = url!;
     img.alt = card.name;
     img.draggable = false;
-    img.style.cssText = 'width:100%; height:auto; display:block; border-radius:6px;';
+    img.style.cssText =
+      'width:100%; height:100%; object-fit:contain; object-position:center; display:block; border-radius:6px;';
     el.appendChild(img);
   }
 

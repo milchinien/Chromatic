@@ -7,6 +7,8 @@ import { resetPerkSelections } from './PerkSelect';
 import { isMuted, toggleMute } from '../systems/audio';
 import { BG, bgUrl, fitBg } from '../ui/backgrounds';
 import { hasSavedRun, loadRun } from '../systems/save/SaveService';
+import { recordRunStart } from '../systems/save/MetaSave';
+import { showAchievementToast } from '../ui/toast';
 
 /**
  * Hauptmenü — 1:1-Port von design/project/screens/menu.jsx.
@@ -24,6 +26,7 @@ export const MainMenu: Screen = (host, ctx) => {
     ...(canResume ? [{ label: 'Fortsetzen', primary: true, action: 'resume' as MenuAction }] : []),
     { label: 'Spielen', primary: !canResume, screen: 'worldmap' },
     { label: 'Karten', screen: 'gallery' },
+    { label: 'Statistiken', screen: 'stats' },
     { label: 'Optionen', action: 'options' },
     { label: 'Credits', action: 'credits' },
     { label: 'Beenden', action: 'quit' },
@@ -206,6 +209,8 @@ export const MainMenu: Screen = (host, ctx) => {
       resetPerkSelections();
       setCurrentRun(createRunState(Date.now() & 0xffffffff));
       setActiveEncounter(null);
+      // Meta-Progression: Run-Start zählen (kann Achievements freischalten).
+      for (const a of recordRunStart()) showAchievementToast(a.name, a.desc);
       // Vor der Weltkarte: Boss-Auswahl bestimmt die Akt-Farbe.
       ctx.go('bossselect');
       return;

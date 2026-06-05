@@ -6,6 +6,7 @@ import { leveledStats, troopRangeFor, upgradeCostFor } from '../systems/data/bal
 import { renderCardView } from '../ui/CardView';
 import { sfx } from '../systems/audio';
 import { BG, bgUrl, fitBg } from '../ui/backgrounds';
+import { coinHudHtml } from '../ui/coins';
 
 const colorLabel: Record<Card['color'], string> = {
   natur: 'Natur',
@@ -54,12 +55,7 @@ export const Shop: Screen = (host, ctx) => {
             <span class="cm-hp-dot"></span>
             <span><span data-slot="hp">${run.baseHp}</span><span style="opacity:0.5;"> / ${run.maxBaseHp}</span></span>
           </div>
-          <div class="cm-coin">
-            <svg viewBox="0 0 24 24" fill="none" stroke="var(--gold-hi)" stroke-width="1.6">
-              <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/>
-            </svg>
-            <span class="cm-coin-val" data-slot="coins">${run.coins}</span>
-          </div>
+          ${coinHudHtml(run.coins)}
         </div>
       </div>
 

@@ -1,6 +1,8 @@
 import type { Screen } from '../router';
 import { clearCurrentRun, getCurrentRun } from '../systems/run/currentRun';
 import { clearSavedRun } from '../systems/save/SaveService';
+import { recordRunEnd } from '../systems/save/MetaSave';
+import { showAchievementToast } from '../ui/toast';
 
 export const GameOver: Screen = (host, ctx) => {
   const run = getCurrentRun();
@@ -10,6 +12,13 @@ export const GameOver: Screen = (host, ctx) => {
   clearSavedRun();
   const visited = run?.visitedNodes.size ?? 0;
   const coins = run?.coins ?? 0;
+
+  // Meta-Progression: Run-Ende festhalten (nur einmal — danach ist run geleert).
+  if (run) {
+    for (const a of recordRunEnd({ actReached: run.actNumber, coins, roomsVisited: visited })) {
+      showAchievementToast(a.name, a.desc);
+    }
+  }
 
   host.innerHTML = `
     <div class="cm-fit"><div class="cm-screen" style="display:flex; align-items:center; justify-content:center;">

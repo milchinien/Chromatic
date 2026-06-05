@@ -12,6 +12,7 @@ import { mulberry32 } from '../systems/rng';
 import { renderRoomTile, roomTileSize } from '../ui/RoomTile';
 import { BG, bgUrl, fitBg } from '../ui/backgrounds';
 import { saveRun } from '../systems/save/SaveService';
+import { coinHudHtml } from '../ui/coins';
 
 // Welt-Karte-Screen. Liest aktiven Run aus currentRun-Singleton. Wenn kein
 // Run aktiv ist (z.B. direkter Aufruf), zurück ins Hauptmenü.
@@ -85,13 +86,7 @@ export const WorldMap: Screen = (host, ctx) => {
             <span class="cm-hp-dot"></span>
             <span><span data-slot="hp">${run.baseHp}</span><span style="opacity:0.5;"> / ${run.maxBaseHp}</span></span>
           </div>
-          <div class="cm-coin">
-            <svg viewBox="0 0 24 24" fill="none" stroke="var(--gold-hi)" stroke-width="1.6">
-              <circle cx="12" cy="12" r="9"/>
-              <circle cx="12" cy="12" r="5"/>
-            </svg>
-            <span class="cm-coin-val" data-slot="coins">${run.coins}</span>
-          </div>
+          ${coinHudHtml(run.coins)}
         </div>
       </div>
 

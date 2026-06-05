@@ -6,6 +6,7 @@ import { PERKS, applyPerkOnChoose } from '../systems/data/perks';
 import { mulberry32 } from '../systems/rng';
 import type { Perk } from '../domain/Run';
 import { BG, bgUrl, fitBg } from '../ui/backgrounds';
+import { coinHudHtml } from '../ui/coins';
 
 const NUM_OFFERS = 3;
 
@@ -72,12 +73,7 @@ export const PerkSelect: Screen = (host, ctx) => {
             <span class="cm-hp-dot"></span>
             <span><span>${run.baseHp}</span><span style="opacity:0.5;"> / ${run.maxBaseHp}</span></span>
           </div>
-          <div class="cm-coin">
-            <svg viewBox="0 0 24 24" fill="none" stroke="var(--gold-hi)" stroke-width="1.6">
-              <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/>
-            </svg>
-            <span class="cm-coin-val">${run.coins}</span>
-          </div>
+          ${coinHudHtml(run.coins)}
         </div>
       </div>
 
