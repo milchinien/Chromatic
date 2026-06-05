@@ -13,6 +13,7 @@ import { PerkSelect } from './screens/PerkSelect';
 import { CardGallery } from './screens/CardGallery';
 import { BossSelect } from './screens/BossSelect';
 import { Stats } from './screens/Stats';
+import { RunIntro } from './screens/RunIntro';
 
 // Design-Auflösung — alle Screens werden in dieser Koordinatengröße entworfen
 // und per CSS-Transform auf den tatsächlichen Viewport skaliert (siehe .cm-fit
@@ -40,6 +41,7 @@ router.register('perk', PerkSelect);
 router.register('gallery', CardGallery);
 router.register('bossselect', BossSelect);
 router.register('stats', Stats);
+router.register('runintro', RunIntro);
 
 router.mount(document.getElementById('app')!);
 router.go('menu');

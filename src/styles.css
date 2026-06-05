@@ -299,3 +299,81 @@ body {
 .cm-clickable:hover {
   filter: brightness(1.18);
 }
+
+/* === Screen-Übergang: dunkles Overlay zwischen zwei Screens ===
+   Der Router (src/router.ts) blendet dieses Layer beim Wechsel kurz ein,
+   tauscht den Screen unter voller Deckung und blendet es wieder aus. Die
+   Transition-Dauer muss mit FADE_MS im Router übereinstimmen. */
+.cm-transition {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(ellipse at 50% 40%, #1a140d 0%, #0a0805 100%);
+  transition: opacity 180ms ease;
+}
+.cm-transition--active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* === Run-Start-Interstitial (src/screens/RunIntro.ts) === */
+.ri-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+  text-align: center;
+}
+.ri-act {
+  opacity: 0;
+  animation: cm-screen-fade-in 0.6s ease-out 0.1s forwards;
+}
+.ri-sigils {
+  display: flex;
+  gap: 20px;
+}
+.ri-sigil {
+  opacity: 0.15;
+  transform: scale(0.8);
+  animation: ri-sigil-on 0.55s ease-out forwards;
+  animation-delay: calc(var(--ri-i) * 0.16s);
+}
+@keyframes ri-sigil-on {
+  0%   { opacity: 0.15; transform: scale(0.8); }
+  60%  { opacity: 1; transform: scale(1.3); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.ri-title {
+  margin: 0;
+  font-size: 42px;
+  color: var(--gold-hi);
+  text-shadow: 0 0 30px rgba(214, 169, 85, 0.35);
+  opacity: 0;
+  animation: cm-screen-fade-in 0.6s ease-out 0.5s forwards;
+}
+.ri-bar {
+  width: 280px;
+  height: 2px;
+  background: var(--line-soft);
+  overflow: hidden;
+}
+.ri-bar-fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, var(--gold-deep), var(--gold-hi));
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: ri-fill 1.5s ease-in-out forwards;
+}
+@keyframes ri-fill {
+  to { transform: scaleX(1); }
+}
+.ri-hint {
+  color: var(--ink-mute);
+  opacity: 0;
+  animation: cm-screen-fade-in 0.5s ease-out 0.9s forwards;
+}

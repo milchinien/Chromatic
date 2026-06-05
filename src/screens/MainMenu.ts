@@ -211,8 +211,9 @@ export const MainMenu: Screen = (host, ctx) => {
       setActiveEncounter(null);
       // Meta-Progression: Run-Start zählen (kann Achievements freischalten).
       for (const a of recordRunStart()) showAchievementToast(a.name, a.desc);
-      // Vor der Weltkarte: Boss-Auswahl bestimmt die Akt-Farbe.
-      ctx.go('bossselect');
+      // Sanfter Einstieg: Lade-Interstitial vor der Boss-Auswahl (die wiederum
+      // die Akt-Farbe bestimmt).
+      ctx.go('runintro');
       return;
     }
     if (it.screen) {
